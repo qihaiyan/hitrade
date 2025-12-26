@@ -455,4 +455,89 @@
   }
 
   init();
+
+  // --- Keyboard shortcuts ---
+  function parseTimeVal(tv){
+    if(tv == null) return null;
+    if(typeof tv === 'number') return tv;
+    if(typeof tv === 'string'){
+      const n = Number(tv); if(!isNaN(n)) return n; return null;
+    }
+    // business day object
+    if(typeof tv === 'object' && tv.year){
+      return Math.floor(new Date(tv.year, tv.month-1, tv.day).getTime()/1000);
+    }
+    return null;
+  }
+
+  function getVisibleRangeNums(chartRef){
+    const vr = chartRef.timeScale().getVisibleRange();
+    if(!vr) return null;
+    const from = parseTimeVal(vr.from);
+    const to = parseTimeVal(vr.to);
+    if(from==null || to==null) return null;
+    return { from, to };
+  }
+
+  function setVisibleRangeAll(range){
+    chart.timeScale().setVisibleRange(range);
+    macdChart.timeScale().setVisibleRange(range);
+    rsiChart.timeScale().setVisibleRange(range);
+  }
+
+  function panPercent(pct){
+    const vr = getVisibleRangeNums(chart);
+    if(!vr) return;
+    const span = vr.to - vr.from;
+    const shift = span * pct;
+    const newRange = { from: Math.floor(vr.from + shift), to: Math.ceil(vr.to + shift) };
+    setVisibleRangeAll(newRange);
+  }
+
+  function zoomFactor(factor){
+    const vr = getVisibleRangeNums(chart);
+    if(!vr) return;
+    const center = (vr.from + vr.to) / 2;
+    const half = (vr.to - vr.from) / 2 * factor;
+    const newRange = { from: Math.floor(center - half), to: Math.ceil(center + half) };
+    setVisibleRangeAll(newRange);
+  }
+
+  window.addEventListener('keydown', (e)=>{
+    // ignore when typing in inputs
+    const t = e.target;
+    if(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    const key = e.key;
+    let handled = true;
+    switch(key){
+      case '+':
+      case '=':
+        zoomFactor(0.85); break;
+      case '-':
+        zoomFactor(1.15); break;
+      case 'ArrowLeft':
+        panPercent(-0.12); break;
+      case 'ArrowRight':
+        panPercent(0.12); break;
+      case 's': // toggle SMA
+        smaToggle.click(); break;
+      case 'e': // toggle EMA
+        emaToggle.click(); break;
+      case 'm': // toggle MACD
+        document.getElementById('macdToggle')?.click(); break;
+      case 'r': // toggle RSI
+        document.getElementById('rsiToggle')?.click(); break;
+      case 'b': // toggle BB
+        document.getElementById('bbToggle')?.click(); break;
+      case 'd': // toggle drawing
+        drawToggle.click(); break;
+      case 'x': // export
+        exportBtn.click(); break;
+      case '0': // fit content
+        chart.timeScale().fitContent(); macdChart.timeScale().fitContent(); rsiChart.timeScale().fitContent(); break;
+      default:
+        handled = false;
+    }
+    if(handled) e.preventDefault();
+  });
 })();

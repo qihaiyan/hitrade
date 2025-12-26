@@ -1,6 +1,8 @@
-# Lightweight-Charts TradingView-like Demo
+# hitrade
 
 本项目为使用 `lightweight-charts` 仿 TradingView 基本功能的演示页面（纯前端静态文件）。
+
+![demo](DEMO.png)
 
 文件:
 - `chart.html` — 主页面（打开此文件即可预览）
