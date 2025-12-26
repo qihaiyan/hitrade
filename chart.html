@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Lightweight-Charts TradingView-like Demo</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <header>
+      <div class="controls">
+        <label>符号: <input id="symbol" value="DEMO" /></label>
+        <label>周期:
+          <select id="timeframe">
+            <option value="1">1m</option>
+            <option value="5">5m</option>
+            <option value="15">15m</option>
+            <option value="60">1h</option>
+            <option value="D">1d</option>
+          </select>
+        </label>
+        <label><input type="checkbox" id="smaToggle" /> SMA</label>
+        <label><input type="checkbox" id="emaToggle" /> EMA</label>
+        <label><input type="checkbox" id="macdToggle" /> MACD</label>
+        <label><input type="checkbox" id="rsiToggle" /> RSI</label>
+        <label>RSI周期: <input id="rsiPeriod" type="number" min="2" max="200" value="14" style="width:60px"></label>
+        <label><input type="checkbox" id="bbToggle" /> 布林带</label>
+        <button id="drawToggle">绘图: 关闭</button>
+        <button id="exportBtn">导出 PNG</button>
+      </div>
+    </header>
+
+    <main>
+      <div id="chart-wrapper">
+        <div id="chart">
+          <canvas id="drawLayer"></canvas>
+        </div>
+
+        <div id="macd-container" class="indicator">
+          <div id="macd-chart"></div>
+        </div>
+
+        <div id="rsi-container" class="indicator">
+          <div id="rsi-chart"></div>
+          <canvas id="rsi-overlay" class="indicator-overlay"></canvas>
+        </div>
+
+        <div id="tooltip" class="tooltip"></div>
+      </div>
+    </main>
+
+    <footer>
+      <small>Lightweight-Charts TradingView-like demo — 本地打开 chart.html 预览</small>
+    </footer>
+  </div>
+
+  <!-- <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script> -->
+  <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>
