@@ -1,7 +1,4 @@
 (function () {
-  // DOM
-  const chartContainer = document.getElementById('chart');
-  const drawCanvas = document.getElementById('drawLayer');
   const tooltip = document.getElementById('tooltip');
   const timeframeSelect = document.getElementById('timeframe');
   const symbolInput = document.getElementById('symbol');
@@ -9,87 +6,37 @@
   const emaToggle = document.getElementById('emaToggle');
   const drawToggle = document.getElementById('drawToggle');
   const exportBtn = document.getElementById('exportBtn');
-
-  // Chart
-  let chart = LightweightCharts.createChart(chartContainer, {
-    layout: { background: { type: 'solid', color: '#071122' }, textColor: '#dbeafe' },
-    rightPriceScale: { visible: false },
-    timeScale: { timeVisible: true, secondsVisible: false },
-    grid: { vertLines: { color: 'rgba(255,255,255,0.03)' }, horzLines: { color: 'rgba(255,255,255,0.02)' } },
-  });
-
-  const candleSeries = chart.addSeries(LightweightCharts.CandlestickSeries, { upColor: '#26a69a', downColor: '#ef5350', borderVisible: true, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
-
-  // Create separate volume chart in its own container
-  const volumeContainer = document.getElementById('volume-chart');
-  const volumeChart = LightweightCharts.createChart(volumeContainer, {
-    layout: { background: { type: 'solid', color: '#071122' }, textColor: '#9fb4d9' },
-    rightPriceScale: { visible: false },
-    timeScale: { timeVisible: true, secondsVisible: false },
-    grid: { vertLines: { color: 'rgba(255,255,255,0.03)' }, horzLines: { color: 'rgba(255,255,255,0.02)' } },
-  });
-  const volumeSeries = volumeChart.addSeries(LightweightCharts.HistogramSeries, { priceFormat: { type: 'volume' }, color: '#26a69a' });
-
-  const smaSeries = chart.addSeries(LightweightCharts.LineSeries, { color: '#eab308', lineWidth: 2, visible: false });
-  const emaSeries = chart.addSeries(LightweightCharts.LineSeries, { color: '#60a5fa', lineWidth: 2, visible: false });
-
-  // MACD: macd line, signal line, histogram (placed below volume via scaleMargins)
-  // RSI (plotted lower) + overbought/oversold horizontal lines
-
-  // Bollinger Bands (upper / lower)
-  const bbUpper = chart.addSeries(LightweightCharts.LineSeries, { color: '#06b6d4', lineWidth: 1, visible: false });
-  const bbLower = chart.addSeries(LightweightCharts.LineSeries, { color: '#06b6d4', lineWidth: 1, visible: false });
-
-  // Create separate indicator charts for MACD and RSI
-  const macdContainer = document.getElementById('macd-chart');
-  const rsiContainer = document.getElementById('rsi-chart');
-
-  const macdChart = LightweightCharts.createChart(macdContainer, {
-    layout: { background: { type: 'solid', color: '#071122' }, textColor: '#9fb4d9' },
-    rightPriceScale: { visible: false },
-    timeScale: { timeVisible: true, secondsVisible: false },
-    grid: { vertLines: { color: 'rgba(255,255,255,0.03)' }, horzLines: { color: 'rgba(255,255,255,0.02)' } },
-    crosshair: {
-      mode: LightweightCharts.CrosshairMode.Normal,
-      vertLine: {
-        visible: false,
-      },
-      horzLine: {
-        visible: false,
-      },
-    },
-  });
-  const macdLine = macdChart.addSeries(LightweightCharts.LineSeries, { color: '#7c3aed', lineWidth: 2, visible: false });
-  const macdSignal = macdChart.addSeries(LightweightCharts.LineSeries, { color: '#ef4444', lineWidth: 1, visible: false });
-  const macdHist = macdChart.addSeries(LightweightCharts.HistogramSeries, { color: '#60a5fa', visible: false, priceFormat: { type: 'volume' } });
-
-  const rsiChart = LightweightCharts.createChart(rsiContainer, {
-    layout: { background: { type: 'solid', color: '#071122' }, textColor: '#9fb4d9' },
-    rightPriceScale: { visible: false },
-    timeScale: { timeVisible: true, secondsVisible: false },
-    grid: { vertLines: { color: 'rgba(255,255,255,0.03)' }, horzLines: { color: 'rgba(255,255,255,0.02)' } },
-    crosshair: {
-      mode: LightweightCharts.CrosshairMode.Normal,
-      vertLine: {
-        visible: false,
-      },
-      horzLine: {
-        visible: false,
-      },
-    },
-  });
-  // RSI (plotted lower) + overbought/oversold horizontal lines
-  const rsiSeries = rsiChart.addSeries(LightweightCharts.LineSeries, { color: '#f97316', lineWidth: 2, visible: false });
-  const rsiOB = rsiChart.addSeries(LightweightCharts.LineSeries, { color: '#ef4444', lineWidth: 1, lineStyle: window.LightweightCharts ? window.LightweightCharts.LineStyle.Dashed : 1, visible: false });
-  const rsiOS = rsiChart.addSeries(LightweightCharts.LineSeries, { color: '#10b981', lineWidth: 1, lineStyle: window.LightweightCharts ? window.LightweightCharts.LineStyle.Dashed : 1, visible: false });
-
-  // RSI overlay canvas for filled 70/30 band
-  const rsiOverlay = document.getElementById('rsi-overlay');
   const rsiPeriodInput = document.getElementById('rsiPeriod');
+  const rsiOverlay = document.getElementById('rsi-overlay');
 
-  // RSI overlay draw helpers (top-level functions moved here for wider visibility)
+  function showTooltipAtPoint(point, html) {
+    if (!tooltip) return;
+    const wrapper = document.getElementById('chart-wrapper');
+    const wrapRect = wrapper.getBoundingClientRect();
+    tooltip.style.display = 'block';
+    tooltip.innerHTML = html;
+    const maxW = Math.min(360, Math.max(220, wrapRect.width - 24));
+    tooltip.style.maxWidth = maxW + 'px';
+    tooltip.style.width = 'auto';
+    const ttRect = tooltip.getBoundingClientRect();
+    let left = point.x + 12;
+    let top = point.y + 12;
+    if (left + ttRect.width > wrapRect.width) left = Math.max(8, wrapRect.width - ttRect.width - 8);
+    if (top + ttRect.height > wrapRect.height) top = Math.max(8, wrapRect.height - ttRect.height - 8);
+    tooltip.style.left = left + 'px';
+    tooltip.style.top = top + 'px';
+  }
+
+  function pointForSeriesAtTime(series, time) {
+    const candleData = window.ChartApp.dataService.getCandleData();
+    const data = series === window.ChartApp.series.smaSeries ? window.ChartApp.indicators.calcSMA(candleData, 20) : (series === window.ChartApp.series.emaSeries ? window.ChartApp.indicators.calcEMA(candleData, 20) : []);
+    for (const p of data) { if (p.time === time) return p.value.toFixed(4); }
+    return null;
+  }
+
   function resizeRSIOverlay() {
     if (!rsiOverlay) return;
+    const rsiContainer = document.getElementById('rsi-container');
     const rect = rsiContainer.getBoundingClientRect();
     rsiOverlay.width = rect.width * devicePixelRatio;
     rsiOverlay.height = rect.height * devicePixelRatio;
@@ -109,732 +56,202 @@
     if (!rsiOverlay) return;
     const ctx = rsiOverlay.getContext('2d');
     ctx.clearRect(0, 0, rsiOverlay.width, rsiOverlay.height);
-    // need coordinates for 70 and 30
     try {
-      const y70 = rsiSeries.priceToCoordinate(70);
-      const y30 = rsiSeries.priceToCoordinate(30);
+      const y70 = window.ChartApp.series.rsiSeries.priceToCoordinate(70);
+      const y30 = window.ChartApp.series.rsiSeries.priceToCoordinate(30);
       if (typeof y70 !== 'number' || typeof y30 !== 'number') return;
       const rectTop = Math.min(y70, y30);
       const rectHeight = Math.abs(y70 - y30);
       ctx.fillStyle = 'rgba(234,88,12,0.08)';
       ctx.fillRect(0, rectTop, rsiOverlay.width / devicePixelRatio, rectHeight);
-    } catch (e) {
-      // priceToCoordinate may fail if scale not ready
-    }
-  }
-
-  // Data storage
-  let candleData = [];
-  let volumeData = [];
-  let dataMap = {}; // time -> ohlc
-
-  // Utilities
-  function toUnixSeconds(date) { return Math.floor(date.getTime() / 1000); }
-
-  function generateBars(count = 400, timeframeSec = 60) {
-    const bars = [];
-    const volumes = [];
-    let t = toUnixSeconds(new Date());
-    t -= count * timeframeSec;
-    let price = 100;
-    for (let i = 0; i < count; i++) {
-      const open = price;
-      const change = (Math.random() - 0.5) * 2 * (Math.random() * 1.5 + 0.2);
-      let close = Math.max(0.1, +(open + change).toFixed(2));
-      const high = Math.max(open, close) + +(Math.random() * 1.2).toFixed(2);
-      const low = Math.min(open, close) - +(Math.random() * 1.2).toFixed(2);
-      const vol = Math.round(100 + Math.random() * 900);
-      const bar = { time: t, open: +open.toFixed(2), high: +high.toFixed(2), low: +low.toFixed(2), close: +close.toFixed(2) };
-      bars.push(bar);
-      volumes.push({ time: t, value: vol, color: close >= open ? '#26a69a' : '#ef5350' });
-      dataMap[t] = bar;
-      price = close;
-      t += timeframeSec;
-    }
-    return { bars, volumes };
-  }
-
-  function calcSMA(data, period) {
-    const res = [];
-    let sum = 0;
-    for (let i = 0; i < data.length; i++) {
-      sum += data[i].close;
-      if (i >= period) sum -= data[i - period].close;
-      if (i >= period - 1) {
-        res.push({ time: data[i].time, value: +(sum / period).toFixed(4) });
-      }
-    }
-    return res;
-  }
-
-  function calcEMAValues(data, period) {
-    const res = [];
-    const k = 2 / (period + 1);
-    let ema = data[0].close;
-    for (let i = 0; i < data.length; i++) {
-      const price = data[i].close;
-      ema = i === 0 ? price : (price * k + ema * (1 - k));
-      res.push({ time: data[i].time, value: +ema.toFixed(4) });
-    }
-    return res;
-  }
-
-  function calcMACD(data, fast = 12, slow = 26, signal = 9) {
-    const fastEMA = calcEMAValues(data, fast);
-    const slowEMA = calcEMAValues(data, slow);
-    const macd = [];
-    for (let i = 0; i < data.length; i++) {
-      const m = { time: data[i].time, value: +(fastEMA[i].value - slowEMA[i].value).toFixed(4) };
-      macd.push(m);
-    }
-    // signal is EMA of macd values
-    const macdValues = macd.map(m => ({ time: m.time, close: m.value }));
-    const signalSeries = calcEMAValues(macdValues, signal);
-    const hist = macd.map((m, i) => ({ time: m.time, value: +(m.value - signalSeries[i].value).toFixed(4), color: (m.value - signalSeries[i].value) >= 0 ? '#26a69a' : '#ef5350' }));
-    return { macd, signal: signalSeries, hist };
-  }
-
-  function calcRSI(data, period = 14) {
-    const res = [];
-    res.push({ time: data[0].time, value: null });
-    let gains = 0, losses = 0;
-    for (let i = 1; i < data.length; i++) {
-      const change = data[i].close - data[i - 1].close;
-      if (i <= period) {
-        if (change > 0) gains += change; else losses += Math.abs(change);
-        if (i === period) {
-          let rs = gains / (losses || 1e-8);
-          res.push({ time: data[i].time, value: +(100 - (100 / (1 + rs))).toFixed(4) });
-        } else {
-          res.push({ time: data[i].time, value: null });
-        }
-      } else {
-        gains = (gains * (period - 1) + Math.max(0, change)) / period;
-        losses = (losses * (period - 1) + Math.max(0, -change)) / period;
-        const rs = gains / (losses || 1e-8);
-        res.push({ time: data[i].time, value: +(100 - (100 / (1 + rs))).toFixed(4) });
-      }
-    }
-    return res;
-  }
-
-  function calcBollingerBands(data, period = 20, mult = 2) {
-    const resUpper = [];
-    const resLower = [];
-    for (let i = 0; i < data.length; i++) {
-      if (i >= period - 1) {
-        let sum = 0;
-        for (let j = i - period + 1; j <= i; j++) sum += data[j].close;
-        const sma = sum / period;
-        let variance = 0;
-        for (let j = i - period + 1; j <= i; j++) variance += Math.pow(data[j].close - sma, 2);
-        variance /= period;
-        const std = Math.sqrt(variance);
-        resUpper.push({ time: data[i].time, value: +(sma + mult * std).toFixed(4) });
-        resLower.push({ time: data[i].time, value: +(sma - mult * std).toFixed(4) });
-      }
-    }
-    return { upper: resUpper, lower: resLower };
-  }
-
-  function calcEMA(data, period) {
-    const res = [];
-    const k = 2 / (period + 1);
-    let ema = data[0].close;
-    for (let i = 0; i < data.length; i++) {
-      const price = data[i].close;
-      ema = i === 0 ? price : (price * k + ema * (1 - k));
-      if (i >= period - 1) res.push({ time: data[i].time, value: +ema.toFixed(4) });
-    }
-    return res;
-  }
-
-  function loadDataForTimeframe(tf) {
-    const sec = tf === 'D' ? 86400 : parseInt(tf, 10) * 60;
-    const { bars, volumes } = generateBars(500, sec);
-    candleData = bars;
-    volumeData = volumes;
-    // rebuild map
-    dataMap = {};
-    for (const b of bars) dataMap[b.time] = b;
-    candleSeries.setData(candleData);
-    volumeSeries.setData(volumeData);
-    updateIndicators();
+    } catch (e) { }
   }
 
   function updateIndicators() {
+    const candleData = window.ChartApp.dataService.getCandleData();
+    const volumeData = window.ChartApp.dataService.getVolumeData();
+
     if (smaToggle.checked) {
-      const sma = calcSMA(candleData, 20);
-      smaSeries.setData(sma);
-      smaSeries.applyOptions({ visible: true });
+      const sma = window.ChartApp.indicators.calcSMA(candleData, 20);
+      window.ChartApp.series.smaSeries.setData(sma);
+      window.ChartApp.series.smaSeries.applyOptions({ visible: true });
     } else {
-      smaSeries.setData([]);
-      smaSeries.applyOptions({ visible: false });
+      window.ChartApp.series.smaSeries.setData([]);
+      window.ChartApp.series.smaSeries.applyOptions({ visible: false });
     }
     if (emaToggle.checked) {
-      const ema = calcEMA(candleData, 20);
-      emaSeries.setData(ema);
-      emaSeries.applyOptions({ visible: true });
+      const ema = window.ChartApp.indicators.calcEMA(candleData, 20);
+      window.ChartApp.series.emaSeries.setData(ema);
+      window.ChartApp.series.emaSeries.applyOptions({ visible: true });
     } else {
-      emaSeries.setData([]);
-      emaSeries.applyOptions({ visible: false });
+      window.ChartApp.series.emaSeries.setData([]);
+      window.ChartApp.series.emaSeries.applyOptions({ visible: false });
     }
-    // MACD
+
     const macdToggle = document.getElementById('macdToggle');
-    const macd = calcMACD(candleData, 12, 26, 9);
-    macdLine.setData(macd.macd);
-    macdSignal.setData(macd.signal);
-    macdHist.setData(macd.hist);
+    const macd = window.ChartApp.indicators.calcMACD(candleData, 12, 26, 9);
+    window.ChartApp.series.macdLine.setData(macd.macd);
+    window.ChartApp.series.macdSignal.setData(macd.signal);
+    window.ChartApp.series.macdHist.setData(macd.hist);
     if (macdToggle && macdToggle.checked) {
-      macdLine.applyOptions({ visible: true });
-      macdSignal.applyOptions({ visible: true });
-      macdHist.applyOptions({ visible: true });
+      window.ChartApp.series.macdLine.applyOptions({ visible: true });
+      window.ChartApp.series.macdSignal.applyOptions({ visible: true });
+      window.ChartApp.series.macdHist.applyOptions({ visible: true });
     } else {
-      // macdLine.setData([]); 
-      macdLine.applyOptions({ visible: false });
-      // macdSignal.setData([]); 
-      macdSignal.applyOptions({ visible: false });
-      // macdHist.setData([]); 
-      macdHist.applyOptions({ visible: false });
+      window.ChartApp.series.macdLine.applyOptions({ visible: false });
+      window.ChartApp.series.macdSignal.applyOptions({ visible: false });
+      window.ChartApp.series.macdHist.applyOptions({ visible: false });
     }
-    // RSI
+
     const rsiToggleEl = document.getElementById('rsiToggle');
     const rp = Number(rsiPeriodInput?.value) || 14;
-    const rsi = calcRSI(candleData, rp);
-    rsiSeries.setData(rsi);
-    rsiSeries.applyOptions({ visible: true });
-    // overbought / oversold lines (70 / 30) aligned to RSI timestamps
+    const rsi = window.ChartApp.indicators.calcRSI(candleData, rp);
+    window.ChartApp.series.rsiSeries.setData(rsi);
+    window.ChartApp.series.rsiSeries.applyOptions({ visible: true });
     const ob = rsi.map(p => ({ time: p.time, value: 70 }));
     const os = rsi.map(p => ({ time: p.time, value: 30 }));
-    rsiOB.setData(ob);
-    rsiOS.setData(os);
+    window.ChartApp.series.rsiOB.setData(ob);
+    window.ChartApp.series.rsiOS.setData(os);
     if (rsiToggleEl && rsiToggleEl.checked) {
-      rsiOB.applyOptions({ visible: true });
-      rsiOS.applyOptions({ visible: true });
+      window.ChartApp.series.rsiOB.applyOptions({ visible: true });
+      window.ChartApp.series.rsiOS.applyOptions({ visible: true });
       drawRSIBand();
     } else {
-      // rsiSeries.setData([]); 
-      rsiSeries.applyOptions({ visible: false });
-      // rsiOB.setData([]); 
-      rsiOB.applyOptions({ visible: false });
-      // rsiOS.setData([]); 
-      rsiOS.applyOptions({ visible: false });
+      window.ChartApp.series.rsiSeries.applyOptions({ visible: false });
+      window.ChartApp.series.rsiOB.applyOptions({ visible: false });
+      window.ChartApp.series.rsiOS.applyOptions({ visible: false });
       clearRSIOverlay();
     }
-    // RSI overlay draw helpers
-    function resizeRSIOverlay() {
-      if (!rsiOverlay) return;
-      const rect = rsiContainer.getBoundingClientRect();
-      rsiOverlay.width = rect.width * devicePixelRatio;
-      rsiOverlay.height = rect.height * devicePixelRatio;
-      rsiOverlay.style.width = rect.width + 'px';
-      rsiOverlay.style.height = rect.height + 'px';
-      const ctx = rsiOverlay.getContext('2d');
-      ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-    }
 
-    function clearRSIOverlay() {
-      if (!rsiOverlay) return;
-      const ctx = rsiOverlay.getContext('2d');
-      ctx.clearRect(0, 0, rsiOverlay.width, rsiOverlay.height);
-    }
-
-    function drawRSIBand() {
-      if (!rsiOverlay) return;
-      const ctx = rsiOverlay.getContext('2d');
-      ctx.clearRect(0, 0, rsiOverlay.width, rsiOverlay.height);
-      // need coordinates for 70 and 30
-      try {
-        const y70 = rsiSeries.priceToCoordinate(70);
-        const y30 = rsiSeries.priceToCoordinate(30);
-        if (typeof y70 !== 'number' || typeof y30 !== 'number') return;
-        const rectTop = Math.min(y70, y30);
-        const rectHeight = Math.abs(y70 - y30);
-        ctx.fillStyle = 'rgba(234,88,12,0.08)';
-        ctx.fillRect(0, rectTop, rsiOverlay.width / devicePixelRatio, rectHeight);
-      } catch (e) {
-        // priceToCoordinate may fail if scale not ready
-      }
-    }
-    // Bollinger Bands
     const bbToggleEl = document.getElementById('bbToggle');
     if (bbToggleEl && bbToggleEl.checked) {
-      const bb = calcBollingerBands(candleData, 20, 2);
-      bbUpper.setData(bb.upper); bbLower.setData(bb.lower);
-      bbUpper.applyOptions({ visible: true }); bbLower.applyOptions({ visible: true });
+      const bb = window.ChartApp.indicators.calcBollingerBands(candleData, 20, 2);
+      window.ChartApp.series.bbUpper.setData(bb.upper);
+      window.ChartApp.series.bbLower.setData(bb.lower);
+      window.ChartApp.series.bbUpper.applyOptions({ visible: true });
+      window.ChartApp.series.bbLower.applyOptions({ visible: true });
     } else {
-      bbUpper.setData([]); bbUpper.applyOptions({ visible: false });
-      bbLower.setData([]); bbLower.applyOptions({ visible: false });
+      window.ChartApp.series.bbUpper.setData([]);
+      window.ChartApp.series.bbUpper.applyOptions({ visible: false });
+      window.ChartApp.series.bbLower.setData([]);
+      window.ChartApp.series.bbLower.applyOptions({ visible: false });
     }
   }
 
-  // Tooltip helpers
-  function showTooltipAtPoint(point, html) {
-    if (!tooltip) return;
-    const wrapper = document.getElementById('chart-wrapper');
-    const wrapRect = wrapper.getBoundingClientRect();
-    // show and set content first so measurement reflects actual size
-    tooltip.style.display = 'block';
-    tooltip.innerHTML = html;
-    // constrain max width relative to wrapper
-    const maxW = Math.min(360, Math.max(220, wrapRect.width - 24));
-    tooltip.style.maxWidth = maxW + 'px';
-    tooltip.style.width = 'auto';
-    // measure after content applied
-    const ttRect = tooltip.getBoundingClientRect();
-    let left = point.x + 12;
-    let top = point.y + 12;
-    // clamp to wrapper
-    if (left + ttRect.width > wrapRect.width) left = Math.max(8, wrapRect.width - ttRect.width - 8);
-    if (top + ttRect.height > wrapRect.height) top = Math.max(8, wrapRect.height - ttRect.height - 8);
-    tooltip.style.left = left + 'px';
-    tooltip.style.top = top + 'px';
-  }
+  function initChartEvents() {
+    const chart = window.ChartApp.charts.chart;
+    const dataMap = window.ChartApp.dataService.getDataMap();
+    const volumeData = window.ChartApp.dataService.getVolumeData();
+    const candleData = window.ChartApp.dataService.getCandleData();
 
-  function getValueAtTime(arr, time) { if (!arr) return null; for (const p of arr) if (p.time === time) return p.value ?? p.close ?? p; return null; }
-
-  chart.subscribeCrosshairMove(param => {
-    if (!param || !param.time) { if (tooltip) tooltip.style.display = 'none'; return; }
-    const t = typeof param.time === 'object' && param.time.year ? (new Date(param.time.year, param.time.month - 1, param.time.day).getTime() / 1000) : param.time;
-    const d = dataMap[t];
-    if (!d) { if (tooltip) tooltip.style.display = 'none'; return; }
-
-    let html = `<div style="margin-bottom:6px"><strong>${symbolInput.value}</strong></div>`;
-    const dt = new Date(t * 1000);
-    html += `<div style="font-size:12px;margin-bottom:6px">${dt.toLocaleString()}</div>`;
-    html += `<div style="font-size:13px">O: ${d.open} &nbsp; H: ${d.high} &nbsp; L: ${d.low} &nbsp; C: ${d.close}</div>`;
-
-    // volume
-    const vol = getValueAtTime(volumeData, t);
-    if (vol != null) html += `<div style="font-size:13px">Vol: ${vol}</div>`;
-
-    // SMA / EMA
-    if (smaToggle.checked) { const s = pointForSeriesAtTime(smaSeries, t); if (s != null) html += `<div style="font-size:13px">SMA: ${s}</div>`; }
-    if (emaToggle.checked) { const e = pointForSeriesAtTime(emaSeries, t); if (e != null) html += `<div style="font-size:13px">EMA: ${e}</div>`; }
-
-    // MACD (compute from candleData)
-    if (document.getElementById('macdToggle')?.checked) {
-      try {
-        const mac = calcMACD(candleData, 12, 26, 9);
-        const m = getValueAtTime(mac.macd, t);
-        const s = getValueAtTime(mac.signal, t);
-        const h = getValueAtTime(mac.hist, t);
-        if (m != null) html += `<div style="font-size:13px">MACD: ${m} &nbsp; Signal: ${s} &nbsp; Hist: ${h}</div>`;
-      } catch (e) { }
-    }
-
-    // RSI
-    if (document.getElementById('rsiToggle')?.checked) {
-      try {
-        const rp = Number(rsiPeriodInput?.value) || 14;
-        const r = calcRSI(candleData, rp);
-        const rv = getValueAtTime(r, t);
-        if (rv != null) html += `<div style="font-size:13px">RSI(${rp}): ${rv}</div>`;
-      } catch (e) { }
-    }
-
-    showTooltipAtPoint(param.point, html);
-    // update per-panel overlays (use chart container id 'chart' as source)
-    try { updatePanelOverlays(t, 'chart', param.point); } catch (e) { }
-  });
-
-  try {
-    macdChart.subscribeCrosshairMove(param => {
+    chart.subscribeCrosshairMove(param => {
+      if (!param || !param.time) { if (tooltip) tooltip.style.display = 'none'; return; }
       const t = typeof param.time === 'object' && param.time.year ? (new Date(param.time.year, param.time.month - 1, param.time.day).getTime() / 1000) : param.time;
-      try { updatePanelOverlays(t, 'macd-chart', param.point); } catch (e) { }
+      const d = dataMap[t];
+      if (!d) { if (tooltip) tooltip.style.display = 'none'; return; }
+
+      let html = `<div style="margin-bottom:6px"><strong>${symbolInput.value}</strong></div>`;
+      const dt = new Date(t * 1000);
+      html += `<div style="font-size:12px;margin-bottom:6px">${dt.toLocaleString()}</div>`;
+      html += `<div style="font-size:13px">O: ${d.open} &nbsp; H: ${d.high} &nbsp; L: ${d.low} &nbsp; C: ${d.close}</div>`;
+
+      const vol = window.ChartApp.dataService.getValueAtTime(volumeData, t);
+      if (vol != null) html += `<div style="font-size:13px">Vol: ${vol}</div>`;
+
+      if (smaToggle.checked) { const s = pointForSeriesAtTime(window.ChartApp.series.smaSeries, t); if (s != null) html += `<div style="font-size:13px">SMA: ${s}</div>`; }
+      if (emaToggle.checked) { const e = pointForSeriesAtTime(window.ChartApp.series.emaSeries, t); if (e != null) html += `<div style="font-size:13px">EMA: ${e}</div>`; }
+
+      if (document.getElementById('macdToggle')?.checked) {
+        try {
+          const mac = window.ChartApp.indicators.calcMACD(candleData, 12, 26, 9);
+          const m = window.ChartApp.dataService.getValueAtTime(mac.macd, t);
+          const s = window.ChartApp.dataService.getValueAtTime(mac.signal, t);
+          const h = window.ChartApp.dataService.getValueAtTime(mac.hist, t);
+          if (m != null) html += `<div style="font-size:13px">MACD: ${m} &nbsp; Signal: ${s} &nbsp; Hist: ${h}</div>`;
+        } catch (e) { }
+      }
+
+      if (document.getElementById('rsiToggle')?.checked) {
+        try {
+          const rp = Number(rsiPeriodInput?.value) || 14;
+          const r = window.ChartApp.indicators.calcRSI(candleData, rp);
+          const rv = window.ChartApp.dataService.getValueAtTime(r, t);
+          if (rv != null) html += `<div style="font-size:13px">RSI(${rp}): ${rv}</div>`;
+        } catch (e) { }
+      }
+
+      showTooltipAtPoint(param.point, html);
+      try { window.ChartApp.crosshair.updatePanelOverlays(t, 'chart', param.point); } catch (e) { }
     });
-  } catch (e) { }
-  try {
-    rsiChart.subscribeCrosshairMove(param => {
-      const t = typeof param.time === 'object' && param.time.year ? (new Date(param.time.year, param.time.month - 1, param.time.day).getTime() / 1000) : param.time;
-      try { updatePanelOverlays(t, 'rsi-chart', param.point); } catch (e) { }
-    });
-  } catch (e) { }
-
-  chart.timeScale().subscribeVisibleLogicalRangeChange(range => {
-    if (range) {
-      try { volumeChart.timeScale().setVisibleLogicalRange(range); } catch (e) { }
-      try { macdChart.timeScale().setVisibleLogicalRange(range); } catch (e) { }
-      try { rsiChart.timeScale().setVisibleLogicalRange(range); } catch (e) { }
-    }
-  });
-
-  volumeChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
-    if (range) {
-      try { chart.timeScale().setVisibleLogicalRange(range); } catch (e) { }
-      try { macdChart.timeScale().setVisibleLogicalRange(range); } catch (e) { }
-      try { rsiChart.timeScale().setVisibleLogicalRange(range); } catch (e) { }
-    }
-  });
-
-  macdChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
-    if (range) {
-      try { chart.timeScale().setVisibleLogicalRange(range); } catch (e) { }
-      try { volumeChart.timeScale().setVisibleLogicalRange(range); } catch (e) { }
-      try { rsiChart.timeScale().setVisibleLogicalRange(range); } catch (e) { }
-    }
-  });
-
-  rsiChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
-    if (range) {
-      try { chart.timeScale().setVisibleLogicalRange(range); } catch (e) { }
-      try { volumeChart.timeScale().setVisibleLogicalRange(range); } catch (e) { }
-      try { macdChart.timeScale().setVisibleLogicalRange(range); } catch (e) { }
-    }
-  });
-
-  function pointForSeriesAtTime(series, time) {
-    // use series data by searching in its internal data array (we keep our own arrays)
-    const data = series === smaSeries ? calcSMA(candleData, 20) : (series === emaSeries ? calcEMA(candleData, 20) : []);
-    for (const p of data) { if (p.time === time) return p.value.toFixed(4); }
-    return null;
-  }
-
-  // Resizing
-  function resizeCanvas() {
-    const rect = chartContainer.getBoundingClientRect();
-    drawCanvas.width = rect.width * devicePixelRatio;
-    drawCanvas.height = rect.height * devicePixelRatio;
-    drawCanvas.style.width = rect.width + 'px';
-    drawCanvas.style.height = rect.height + 'px';
-    drawCtx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-    redrawShapes();
   }
 
   function resizeAllCharts() {
+    const chartContainer = document.getElementById('chart');
     const w = chartContainer.clientWidth;
     const mainH = chartContainer.clientHeight;
-    chart.resize(w, mainH);
+    window.ChartApp.charts.chart.resize(w, mainH);
     const volH = document.getElementById('volume-container').clientHeight;
     const macdH = document.getElementById('macd-container').clientHeight;
     const rsiH = document.getElementById('rsi-container').clientHeight;
-    volumeChart.resize(w, volH);
-    macdChart.resize(w, macdH);
-    rsiChart.resize(w, rsiH);
-    resizeCanvas();
+    window.ChartApp.charts.volumeChart.resize(w, volH);
+    window.ChartApp.charts.macdChart.resize(w, macdH);
+    window.ChartApp.charts.rsiChart.resize(w, rsiH);
+    window.ChartApp.drawing.resizeCanvas();
     resizeRSIOverlay();
     drawRSIBand();
   }
 
-  window.addEventListener('resize', resizeAllCharts);
-
-  // Drawing layer (simple straight-line tool)
-  const drawCtx = drawCanvas.getContext('2d');
-  let drawMode = false;
-  let drawing = false;
-  let startPt = null;
-  const shapes = [];
-
-  function setDrawMode(on) { drawMode = on; drawToggle.textContent = `绘图: ${on ? '开启' : '关闭'}`; drawCanvas.style.pointerEvents = on ? 'auto' : 'none'; }
-
-  drawCanvas.addEventListener('pointerdown', (ev) => {
-    if (!drawMode) return;
-    drawing = true;
-    const r = drawCanvas.getBoundingClientRect();
-    startPt = { x: (ev.clientX - r.left), y: (ev.clientY - r.top) };
-  });
-  drawCanvas.addEventListener('pointermove', (ev) => {
-    if (!drawing) return;
-    const r = drawCanvas.getBoundingClientRect();
-    const pt = { x: (ev.clientX - r.left), y: (ev.clientY - r.top) };
-    drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
-    redrawShapes();
-    drawCtx.strokeStyle = '#f97316';
-    drawCtx.lineWidth = 2;
-    drawCtx.beginPath();
-    drawCtx.moveTo(startPt.x, startPt.y);
-    drawCtx.lineTo(pt.x, pt.y);
-    drawCtx.stroke();
-  });
-  drawCanvas.addEventListener('pointerup', (ev) => {
-    if (!drawing) return;
-    drawing = false;
-    const r = drawCanvas.getBoundingClientRect();
-    const endPt = { x: (ev.clientX - r.left), y: (ev.clientY - r.top) };
-    shapes.push({ type: 'line', from: startPt, to: endPt, color: '#f97316', width: 2 });
-    startPt = null;
-    drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
-    redrawShapes();
-  });
-
-  function redrawShapes() {
-    drawCtx.save();
-    drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
-    for (const s of shapes) {
-      if (s.type === 'line') {
-        drawCtx.strokeStyle = s.color;
-        drawCtx.lineWidth = s.width;
-        drawCtx.beginPath();
-        drawCtx.moveTo(s.from.x, s.from.y);
-        drawCtx.lineTo(s.to.x, s.to.y);
-        drawCtx.stroke();
-      }
-    }
-    drawCtx.restore();
-  }
-
-  // Export screenshot using html2canvas
-  exportBtn.addEventListener('click', () => {
-    const wrapper = document.getElementById('chart-wrapper');
-    html2canvas(wrapper, { backgroundColor: '#071122', scale: devicePixelRatio }).then(canvas => {
-      const a = document.createElement('a');
-      a.href = canvas.toDataURL('image/png');
-      a.download = `${symbolInput.value || 'chart'}_${Date.now()}.png`;
-      a.click();
-    });
-  });
-
-  // UI bindings
-  timeframeSelect.addEventListener('change', () => loadDataForTimeframe(timeframeSelect.value));
-  smaToggle.addEventListener('change', updateIndicators);
-  emaToggle.addEventListener('change', updateIndicators);
-  document.getElementById('macdToggle')?.addEventListener('change', updateIndicators);
-  document.getElementById('rsiToggle')?.addEventListener('change', updateIndicators);
-  document.getElementById('bbToggle')?.addEventListener('change', updateIndicators);
-  drawToggle.addEventListener('click', () => setDrawMode(!drawMode));
-  rsiPeriodInput?.addEventListener('change', () => updateIndicators());
-
-  // init
   function init() {
-    // size chart container to CSS size
-    chart.resize(chartContainer.clientWidth, chartContainer.clientHeight);
-    // also size indicator charts
-    volumeChart.resize(chartContainer.clientWidth, document.getElementById('volume-container').clientHeight);
-    macdChart.resize(chartContainer.clientWidth, document.getElementById('macd-container').clientHeight);
-    rsiChart.resize(chartContainer.clientWidth, document.getElementById('rsi-container').clientHeight);
-    loadDataForTimeframe(timeframeSelect.value);
-    setDrawMode(false);
-    // initial canvas sizing
-    resizeCanvas();
+    const chartContainer = document.getElementById('chart');
+    window.ChartApp.charts.chart.resize(chartContainer.clientWidth, chartContainer.clientHeight);
+    window.ChartApp.charts.volumeChart.resize(chartContainer.clientWidth, document.getElementById('volume-container').clientHeight);
+    window.ChartApp.charts.macdChart.resize(chartContainer.clientWidth, document.getElementById('macd-container').clientHeight);
+    window.ChartApp.charts.rsiChart.resize(chartContainer.clientWidth, document.getElementById('rsi-container').clientHeight);
+    const { candleData, volumeData } = window.ChartApp.dataService.loadDataForTimeframe(timeframeSelect.value);
+    window.ChartApp.series.candleSeries.setData(candleData);
+    window.ChartApp.series.volumeSeries.setData(volumeData);
+    updateIndicators();
+    window.ChartApp.drawing.setDrawMode(false);
+    window.ChartApp.drawing.resizeCanvas();
   }
 
-  init();
-
-  const wrapper = document.getElementById('chart-wrapper');
-
-  // per-panel overlays to simulate built-in canvas crosshair on each chart
-  const panelCharts = [
-    { id: 'chart', chartRef: chart },
-    { id: 'volume-chart', chartRef: volumeChart },
-    { id: 'macd-chart', chartRef: macdChart },
-    { id: 'rsi-chart', chartRef: rsiChart },
-  ];
-  const panelOverlays = {};
-  panelCharts.forEach(p => {
-    const cont = document.getElementById(p.id);
-    if (!cont) return;
-    const v = document.createElement('div');
-    v.className = 'panel-crosshair-vert';
-    v.style.display = 'none';
-    cont.style.position = cont.style.position || 'relative';
-    cont.appendChild(v);
-    const h = document.createElement('div');
-    h.className = 'panel-crosshair-hor';
-    h.style.display = 'none';
-    cont.appendChild(h);
-    const label = document.createElement('div');
-    label.className = 'panel-price-label';
-    label.style.display = 'none';
-    cont.appendChild(label);
-    // map id -> primary series used for price coordinate
-    let seriesRef = null;
-    if (p.id === 'chart') seriesRef = candleSeries;
-    else if (p.id === 'volume-chart') seriesRef = volumeSeries;
-    else if (p.id === 'macd-chart') seriesRef = macdLine;
-    else if (p.id === 'rsi-chart') seriesRef = rsiSeries;
-    panelOverlays[p.id] = { container: cont, chartRef: p.chartRef, vert: v, hor: h, label: label, series: seriesRef };
-  });
-
-  function updatePanelOverlays(time, sourceId, sourcePoint) {
-    for (const id in panelOverlays) {
-      const po = panelOverlays[id];
-      let x = null;
-      const useSourceChart = (id === sourceId);
-      const chartRef = useSourceChart ? po.chartRef : chart;
-      try { x = chartRef.timeScale().timeToCoordinate(time); } catch (e) { x = null; }
-      if (typeof x === 'number' && !isNaN(x)) {
-        const contRect = po.container.getBoundingClientRect();
-        const canvasEl = id === 'rsi-chart' ? po.container.querySelector('canvas:not(.indicator-overlay)') : po.container.querySelector('canvas');
-        let canvasLeftOffset = 0;
-        if (canvasEl) {
-          try {
-            const canvRect = canvasEl.getBoundingClientRect();
-            canvasLeftOffset = canvRect.left - contRect.left;
-          } catch (e) { canvasLeftOffset = 0; }
-        }
-        po.vert.style.left = Math.round(x + canvasLeftOffset) + 'px';
-        po.vert.style.display = 'block';
-      } else {
-        po.vert.style.display = 'none';
-      }
-      // horizontal: align to series price tick if possible
-      let priceVal = null;
-      if (id === 'chart') {
-        const b = dataMap[time]; if (b) priceVal = b.close;
-      } else if (id === 'volume-chart') {
-        priceVal = getValueAtTime(volumeData, time);
-      } else if (id === 'macd-chart') {
-        try { const mac = calcMACD(candleData, 12, 26, 9); priceVal = getValueAtTime(mac.macd, time); } catch (e) { priceVal = null; }
-      } else if (id === 'rsi-chart') {
-        try { const rp = Number(rsiPeriodInput?.value) || 14; const r = calcRSI(candleData, rp); priceVal = getValueAtTime(r, time); } catch (e) { priceVal = null; }
-      }
-      let y = null;
-      if (priceVal != null && po.series) {
-        try { y = po.series.priceToCoordinate(priceVal); } catch (e) { y = null; }
-      }
-      // fallback: if no price-derived y and this is source panel, use sourcePoint
-      if ((typeof y !== 'number' || isNaN(y)) && sourceId === id && sourcePoint && typeof sourcePoint.y === 'number') {
-        y = sourcePoint.y;
-      }
-      if (typeof y === 'number' && !isNaN(y)) {
-        // adjust y by canvas top offset so it aligns with chart canvas drawing
-        const contRect2 = po.container.getBoundingClientRect();
-        const canvasEl2 = po.container.querySelector('canvas');
-        let canvasTopOffset = 0;
-        if (canvasEl2) {
-          try {
-            const canvRect2 = canvasEl2.getBoundingClientRect();
-            canvasTopOffset = canvRect2.top - contRect2.top;
-          } catch (e) { canvasTopOffset = 0; }
-        }
-        const topPos = Math.round(y + canvasTopOffset);
-        po.hor.style.top = topPos + 'px';
-        po.hor.style.display = 'block';
-        // update label near right side
-        if (priceVal != null) {
-          po.label.textContent = typeof priceVal === 'number' ? priceVal.toFixed(4) : String(priceVal);
-          po.label.style.top = Math.round(topPos - 10) + 'px';
-          po.label.style.display = 'block';
-        } else {
-          po.label.style.display = 'none';
-        }
-      } else {
-        po.hor.style.display = 'none';
-        po.label.style.display = 'none';
-      }
-    }
+  function initUIBindings() {
+    timeframeSelect.addEventListener('change', () => {
+      const { candleData, volumeData } = window.ChartApp.dataService.loadDataForTimeframe(timeframeSelect.value);
+      window.ChartApp.series.candleSeries.setData(candleData);
+      window.ChartApp.series.volumeSeries.setData(volumeData);
+      updateIndicators();
+    });
+    smaToggle.addEventListener('change', updateIndicators);
+    emaToggle.addEventListener('change', updateIndicators);
+    document.getElementById('macdToggle')?.addEventListener('change', updateIndicators);
+    document.getElementById('rsiToggle')?.addEventListener('change', updateIndicators);
+    document.getElementById('bbToggle')?.addEventListener('change', updateIndicators);
+    drawToggle.addEventListener('click', () => {
+      const currentMode = drawToggle.textContent.includes('开启');
+      window.ChartApp.drawing.setDrawMode(!currentMode);
+    });
+    rsiPeriodInput?.addEventListener('change', () => updateIndicators());
+    exportBtn.addEventListener('click', () => {
+      const wrapper = document.getElementById('chart-wrapper');
+      html2canvas(wrapper, { backgroundColor: '#071122', scale: devicePixelRatio }).then(canvas => {
+        const a = document.createElement('a');
+        a.href = canvas.toDataURL('image/png');
+        a.download = `${symbolInput.value || 'chart'}_${Date.now()}.png`;
+        a.click();
+      });
+    });
+    window.addEventListener('resize', resizeAllCharts);
   }
 
-  // keep indicator charts time range synced with main chart
-  chart.timeScale().subscribeVisibleTimeRangeChange(() => {
-    const vr = chart.timeScale().getVisibleRange();
-    if (vr && vr.from != null && vr.to != null) {
-      try { volumeChart.timeScale().setVisibleRange(vr); } catch (e) { console.warn('volumeChart.setVisibleRange failed', e); }
-      try { macdChart.timeScale().setVisibleRange(vr); } catch (e) { console.warn('macdChart.setVisibleRange failed', e); }
-      try { rsiChart.timeScale().setVisibleRange(vr); } catch (e) { console.warn('rsiChart.setVisibleRange failed', e); }
-    }
-  });
-
-  // --- Keyboard shortcuts ---
-  function parseTimeVal(tv) {
-    if (tv == null) return null;
-    if (typeof tv === 'number') return tv;
-    if (typeof tv === 'string') {
-      const n = Number(tv); if (!isNaN(n)) return n; return null;
-    }
-    // business day object
-    if (typeof tv === 'object' && tv.year) {
-      return Math.floor(new Date(tv.year, tv.month - 1, tv.day).getTime() / 1000);
-    }
-    return null;
-  }
-
-  function getVisibleRangeNums(chartRef) {
-    const vr = chartRef.timeScale().getVisibleRange();
-    if (!vr) return null;
-    const from = parseTimeVal(vr.from);
-    const to = parseTimeVal(vr.to);
-    if (from == null || to == null) return null;
-    return { from, to };
-  }
-
-  // data bounds helper
-  function getDataTimeBounds() {
-    if (!candleData || candleData.length === 0) return null;
-    return { min: candleData[0].time, max: candleData[candleData.length - 1].time };
-  }
-
-  function setVisibleRangeAll(range) {
-    chart.timeScale().setVisibleRange(range);
-    try { volumeChart.timeScale().setVisibleRange(range); } catch (e) { console.warn('volumeChart.setVisibleRange failed', e); }
-    macdChart.timeScale().setVisibleRange(range);
-    rsiChart.timeScale().setVisibleRange(range);
-  }
-
-  function panPercent(pct) {
-    const vr = getVisibleRangeNums(chart);
-    if (!vr) return;
-    const span = vr.to - vr.from;
-    const shift = Math.floor(span * pct);
-    let newFrom = Math.floor(vr.from + shift);
-    let newTo = Math.ceil(vr.to + shift);
-    const bounds = getDataTimeBounds();
-    if (bounds) {
-      // clamp to available data range
-      if (newFrom < bounds.min) {
-        newFrom = bounds.min;
-        newTo = bounds.min + span;
-      }
-      if (newTo > bounds.max) {
-        newTo = bounds.max;
-        newFrom = bounds.max - span;
-      }
-      // ensure valid range
-      if (newFrom >= newTo) return;
-      // if no effective change, don't call setVisibleRange (prevents side-effects)
-      if (newFrom === vr.from && newTo === vr.to) return;
-    }
-    setVisibleRangeAll({ from: newFrom, to: newTo });
-  }
-
-  function zoomFactor(factor) {
-    const vr = getVisibleRangeNums(chart);
-    if (!vr) return;
-    const center = (vr.from + vr.to) / 2;
-    const half = (vr.to - vr.from) / 2 * factor;
-    const newRange = { from: Math.floor(center - half), to: Math.ceil(center + half) };
-    setVisibleRangeAll(newRange);
-  }
-
-  window.addEventListener('keydown', (e) => {
-    // ignore when typing in inputs
-    const t = e.target;
-    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-    const key = e.key;
-    let handled = true;
-    // ignore modifier combinations to avoid accidental zoom/pan when holding Shift/Ctrl/Alt/Meta
-    if (e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) { return; }
-    switch (key) {
-      case 'ArrowUp':
-        zoomFactor(0.85);
-        break;
-      case 'ArrowDown':
-        zoomFactor(1.15);
-        break;
-      case 'ArrowLeft':
-        // only pan on left/right — never trigger zoom here
-        panPercent(-0.12);
-        break;
-      case 'ArrowRight':
-        panPercent(0.12);
-        break;
-      case 'e': // toggle EMA
-        emaToggle.click(); break;
-      case 'm': // toggle MACD
-        document.getElementById('macdToggle')?.click(); break;
-      case 's': // toggle RSI
-        document.getElementById('rsiToggle')?.click(); break;
-      case 'b': // toggle BB
-        document.getElementById('bbToggle')?.click(); break;
-      case 'd': // toggle drawing
-        drawToggle.click(); break;
-      case 'x': // export
-        exportBtn.click(); break;
-      case '0': // fit content
-        chart.timeScale().fitContent(); macdChart.timeScale().fitContent(); rsiChart.timeScale().fitContent(); break;
-      default:
-        handled = false;
-    }
-    if (handled) e.preventDefault();
+  window.addEventListener('DOMContentLoaded', () => {
+    init();
+    window.ChartApp.crosshair.initPanelOverlays();
+    window.ChartApp.crosshair.initCrosshairEvents();
+    window.ChartApp.crosshair.initTimeRangeSync();
+    window.ChartApp.drawing.initDrawingEvents();
+    window.ChartApp.navigation.initKeyboardShortcuts();
+    initChartEvents();
+    initUIBindings();
   });
 })();
