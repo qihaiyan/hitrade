@@ -123,7 +123,7 @@ main {
     word-break: break-word;
     white-space: normal;
     overflow-wrap: anywhere;
-    z-index: 9999;
+    z-index: 10000;
     pointer-events: auto;
     box-shadow: 0 8px 30px rgba(2,6,23,0.7);
     backdrop-filter: blur(6px);
@@ -164,7 +164,20 @@ button:hover {
     top: 0;
     bottom: 0;
     width: 1px;
-    background: rgba(226,232,240,0.12);
+    background: rgba(226,232,240,0.22);
     pointer-events: none;
-    z-index: 9998;
+    z-index: 9999;
+    will-change: left;
+}
+
+/* 横向全局十字线 */
+.global-crosshair-horizontal {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: rgba(226,232,240,0.32);
+    pointer-events: none;
+    z-index: 9999;
+    will-change: top;
 }

@@ -412,57 +412,121 @@
     }
 
     showTooltipAtPoint(param.point, html);
-    // sync global vertical crosshair from this chart
+    // sync global vertical crosshair from this chart (prefer time-based coordinate)
     try {
       const wrapRect = wrapper.getBoundingClientRect();
       const cRect = chartContainer.getBoundingClientRect();
-      if (param && param.point) {
-        const gx = Math.round(cRect.left - wrapRect.left + param.point.x);
+      let xCoord = null;
+      try { xCoord = chart.timeScale().timeToCoordinate(param.time); } catch (e) { xCoord = null; }
+      if (typeof xCoord !== 'number' || isNaN(xCoord)) xCoord = param.point ? param.point.x : null;
+      if (xCoord != null) {
+        const gx = Math.round(cRect.left - wrapRect.left + xCoord);
         globalCrosshair.style.left = gx + 'px';
         globalCrosshair.style.display = 'block';
       } else {
         globalCrosshair.style.display = 'none';
       }
     } catch (e) { }
+    // horizontal crosshair: use pointer y when available
+    try {
+      const wrapRect = wrapper.getBoundingClientRect();
+      const cRect = chartContainer.getBoundingClientRect();
+      const yCoord = param && param.point ? param.point.y : null;
+      if (typeof yCoord === 'number') {
+        const gy = Math.round(cRect.top - wrapRect.top + yCoord);
+        globalCrosshairH.style.top = gy + 'px';
+        globalCrosshairH.style.display = 'block';
+      } else {
+        globalCrosshairH.style.display = 'none';
+      }
+    } catch (e) { }
   });
 
   // subscribe other charts so moving mouse over them also updates the global crosshair
-  try {
-    volumeChart.subscribeCrosshairMove(param => {
-      if (!param || !param.point) { globalCrosshair.style.display = 'none'; return; }
-      try {
-        const wrapRect = wrapper.getBoundingClientRect();
-        const cRect = document.getElementById('volume-chart').getBoundingClientRect();
-        const gx = Math.round(cRect.left - wrapRect.left + param.point.x);
-        globalCrosshair.style.left = gx + 'px';
-        globalCrosshair.style.display = 'block';
-      } catch (e) { }
-    });
-  } catch (e) { }
-  try {
-    macdChart.subscribeCrosshairMove(param => {
-      if (!param || !param.point) { globalCrosshair.style.display = 'none'; return; }
-      try {
-        const wrapRect = wrapper.getBoundingClientRect();
-        const cRect = document.getElementById('macd-chart').getBoundingClientRect();
-        const gx = Math.round(cRect.left - wrapRect.left + param.point.x);
-        globalCrosshair.style.left = gx + 'px';
-        globalCrosshair.style.display = 'block';
-      } catch (e) { }
-    });
-  } catch (e) { }
-  try {
-    rsiChart.subscribeCrosshairMove(param => {
-      if (!param || !param.point) { globalCrosshair.style.display = 'none'; return; }
-      try {
-        const wrapRect = wrapper.getBoundingClientRect();
-        const cRect = document.getElementById('rsi-chart').getBoundingClientRect();
-        const gx = Math.round(cRect.left - wrapRect.left + param.point.x);
-        globalCrosshair.style.left = gx + 'px';
-        globalCrosshair.style.display = 'block';
-      } catch (e) { }
-    });
-  } catch (e) { }
+    try {
+      volumeChart.subscribeCrosshairMove(param => {
+        if (!param || (!param.point && !param.time)) { globalCrosshair.style.display = 'none'; globalCrosshairH.style.display = 'none'; return; }
+        try {
+          const wrapRect = wrapper.getBoundingClientRect();
+          const cRect = document.getElementById('volume-chart').getBoundingClientRect();
+          let xCoord = null;
+          try { xCoord = volumeChart.timeScale().timeToCoordinate(param.time); } catch (e) { xCoord = null; }
+          if (typeof xCoord !== 'number' || isNaN(xCoord)) xCoord = param.point ? param.point.x : null;
+          if (xCoord != null) {
+            const gx = Math.round(cRect.left - wrapRect.left + xCoord);
+            globalCrosshair.style.left = gx + 'px';
+            globalCrosshair.style.display = 'block';
+          } else {
+            globalCrosshair.style.display = 'none';
+          }
+          // horizontal
+          const yCoord = param.point ? param.point.y : null;
+          if (typeof yCoord === 'number') {
+            const gy = Math.round(cRect.top - wrapRect.top + yCoord);
+            globalCrosshairH.style.top = gy + 'px';
+            globalCrosshairH.style.display = 'block';
+          } else {
+            globalCrosshairH.style.display = 'none';
+          }
+        } catch (e) { }
+      });
+    } catch (e) { }
+    try {
+      macdChart.subscribeCrosshairMove(param => {
+        if (!param || (!param.point && !param.time)) { globalCrosshair.style.display = 'none'; globalCrosshairH.style.display = 'none'; return; }
+        try {
+          const wrapRect = wrapper.getBoundingClientRect();
+          const cRect = document.getElementById('macd-chart').getBoundingClientRect();
+          let xCoord = null;
+          try { xCoord = macdChart.timeScale().timeToCoordinate(param.time); } catch (e) { xCoord = null; }
+          if (typeof xCoord !== 'number' || isNaN(xCoord)) xCoord = param.point ? param.point.x : null;
+          if (xCoord != null) {
+            const gx = Math.round(cRect.left - wrapRect.left + xCoord);
+            globalCrosshair.style.left = gx + 'px';
+            globalCrosshair.style.display = 'block';
+          } else {
+            globalCrosshair.style.display = 'none';
+          }
+          // horizontal
+          const yCoord = param.point ? param.point.y : null;
+          if (typeof yCoord === 'number') {
+            const gy = Math.round(cRect.top - wrapRect.top + yCoord);
+            globalCrosshairH.style.top = gy + 'px';
+            globalCrosshairH.style.display = 'block';
+          } else {
+            globalCrosshairH.style.display = 'none';
+          }
+        } catch (e) { }
+      });
+    } catch (e) { }
+    try {
+      rsiChart.subscribeCrosshairMove(param => {
+        if (!param || (!param.point && !param.time)) { globalCrosshair.style.display = 'none'; globalCrosshairH.style.display = 'none'; return; }
+        try {
+          const wrapRect = wrapper.getBoundingClientRect();
+          const cRect = document.getElementById('rsi-chart').getBoundingClientRect();
+          let xCoord = null;
+          try { xCoord = rsiChart.timeScale().timeToCoordinate(param.time); } catch (e) { xCoord = null; }
+          if (typeof xCoord !== 'number' || isNaN(xCoord)) xCoord = param.point ? param.point.x : null;
+          if (xCoord != null) {
+            const gx = Math.round(cRect.left - wrapRect.left + xCoord);
+            globalCrosshair.style.left = gx + 'px';
+            globalCrosshair.style.display = 'block';
+          } else {
+            globalCrosshair.style.display = 'none';
+          }
+          // horizontal
+          const yCoord = param.point ? param.point.y : null;
+          if (typeof yCoord === 'number') {
+            const gy = Math.round(cRect.top - wrapRect.top + yCoord);
+            globalCrosshairH.style.top = gy + 'px';
+            globalCrosshairH.style.display = 'block';
+          } else {
+            globalCrosshairH.style.display = 'none';
+          }
+        } catch (e) { }
+      });
+    } catch (e) { }
 
   function pointForSeriesAtTime(series, time) {
     // use series data by searching in its internal data array (we keep our own arrays)
@@ -600,6 +664,15 @@
     globalCrosshair.className = 'global-crosshair';
     globalCrosshair.style.display = 'none';
     wrapper.appendChild(globalCrosshair);
+  }
+  // horizontal global crosshair element
+  let globalCrosshairH = document.getElementById('global-crosshair-h');
+  if (!globalCrosshairH) {
+    globalCrosshairH = document.createElement('div');
+    globalCrosshairH.id = 'global-crosshair-h';
+    globalCrosshairH.className = 'global-crosshair-horizontal';
+    globalCrosshairH.style.display = 'none';
+    wrapper.appendChild(globalCrosshairH);
   }
 
     // keep indicator charts time range synced with main chart
