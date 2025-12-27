@@ -346,31 +346,65 @@
     }
   }
 
-  // Tooltip
-  function showTooltipAtPoint(point, content) {
-    tooltip.style.left = (point.x + 12) + 'px';
-    tooltip.style.top = (point.y + 12) + 'px';
-    tooltip.innerHTML = content;
+  // Tooltip helpers
+  function showTooltipAtPoint(point, html) {
+    if (!tooltip) return;
+    const wrapper = document.getElementById('chart-wrapper');
+    const wrapRect = wrapper.getBoundingClientRect();
+    const ttRect = tooltip.getBoundingClientRect();
+    let left = point.x + 12;
+    let top = point.y + 12;
+    // clamp to wrapper
+    if (left + ttRect.width > wrapRect.width) left = Math.max(8, wrapRect.width - ttRect.width - 8);
+    if (top + ttRect.height > wrapRect.height) top = Math.max(8, wrapRect.height - ttRect.height - 8);
+    tooltip.style.left = left + 'px';
+    tooltip.style.top = top + 'px';
+    tooltip.innerHTML = html;
     tooltip.style.display = 'block';
   }
 
+  function getValueAtTime(arr, time){ if(!arr) return null; for(const p of arr) if(p.time === time) return p.value ?? p.close ?? p; return null; }
+
   chart.subscribeCrosshairMove(param => {
-    if (!param.time) { tooltip.style.display = 'none'; return; }
-    const t = typeof param.time === 'object' && param.time.year ? (new Date(param.time.year, param.time.month - 1, param.time.day).getTime() / 1000) : param.time;
+    if(!param || !param.time){ if(tooltip) tooltip.style.display='none'; return; }
+    const t = typeof param.time === 'object' && param.time.year ? (new Date(param.time.year, param.time.month-1, param.time.day).getTime()/1000) : param.time;
     const d = dataMap[t];
-    if (!d) { tooltip.style.display = 'none'; return; }
-    let html = `<div><strong>${symbolInput.value}</strong></div>`;
-    const dt = new Date(t * 1000);
-    html += `<div>${dt.toLocaleString()}</div>`;
-    html += `<div>O: ${d.open} H: ${d.high} L: ${d.low} C: ${d.close}</div>`;
-    if (smaToggle.checked) {
-      const s = pointForSeriesAtTime(smaSeries, t);
-      if (s != null) html += `<div>SMA: ${s}</div>`;
+    if(!d){ if(tooltip) tooltip.style.display='none'; return; }
+
+    let html = `<div style="margin-bottom:6px"><strong>${symbolInput.value}</strong></div>`;
+    const dt = new Date(t*1000);
+    html += `<div style="font-size:12px;margin-bottom:6px">${dt.toLocaleString()}</div>`;
+    html += `<div style="font-size:13px">O: ${d.open} &nbsp; H: ${d.high} &nbsp; L: ${d.low} &nbsp; C: ${d.close}</div>`;
+
+    // volume
+    const vol = getValueAtTime(volumeData, t);
+    if(vol != null) html += `<div style="font-size:13px">Vol: ${vol}</div>`;
+
+    // SMA / EMA
+    if(smaToggle.checked){ const s = pointForSeriesAtTime(smaSeries, t); if(s!=null) html += `<div style="font-size:13px">SMA: ${s}</div>`; }
+    if(emaToggle.checked){ const e = pointForSeriesAtTime(emaSeries, t); if(e!=null) html += `<div style="font-size:13px">EMA: ${e}</div>`; }
+
+    // MACD (compute from candleData)
+    if(document.getElementById('macdToggle')?.checked){
+      try{
+        const mac = calcMACD(candleData,12,26,9);
+        const m = getValueAtTime(mac.macd, t);
+        const s = getValueAtTime(mac.signal, t);
+        const h = getValueAtTime(mac.hist, t);
+        if(m!=null) html += `<div style="font-size:13px">MACD: ${m} &nbsp; Signal: ${s} &nbsp; Hist: ${h}</div>`;
+      }catch(e){ }
     }
-    if (emaToggle.checked) {
-      const e = pointForSeriesAtTime(emaSeries, t);
-      if (e != null) html += `<div>EMA: ${e}</div>`;
+
+    // RSI
+    if(document.getElementById('rsiToggle')?.checked){
+      try{
+        const rp = Number(rsiPeriodInput?.value) || 14;
+        const r = calcRSI(candleData, rp);
+        const rv = getValueAtTime(r, t);
+        if(rv!=null) html += `<div style="font-size:13px">RSI(${rp}): ${rv}</div>`;
+      }catch(e){ }
     }
+
     showTooltipAtPoint(param.point, html);
   });
 
