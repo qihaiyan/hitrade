@@ -112,14 +112,17 @@ main {
 
 .tooltip {
     position: absolute;
-    right: 8px;
-    top: 8px;
     background: rgba(3, 7, 18, 0.9);
     padding: 8px;
     border-radius: 6px;
     color: #e2e8f0;
     font-size: 13px;
     min-width: 160px;
+    max-width: 360px;
+    box-sizing: border-box;
+    word-break: break-word;
+    white-space: normal;
+    overflow-wrap: anywhere;
     z-index: 9999;
     pointer-events: auto;
     box-shadow: 0 8px 30px rgba(2,6,23,0.7);

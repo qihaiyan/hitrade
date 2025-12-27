@@ -351,6 +351,14 @@
     if (!tooltip) return;
     const wrapper = document.getElementById('chart-wrapper');
     const wrapRect = wrapper.getBoundingClientRect();
+    // show and set content first so measurement reflects actual size
+    tooltip.style.display = 'block';
+    tooltip.innerHTML = html;
+    // constrain max width relative to wrapper
+    const maxW = Math.min(360, Math.max(220, wrapRect.width - 24));
+    tooltip.style.maxWidth = maxW + 'px';
+    tooltip.style.width = 'auto';
+    // measure after content applied
     const ttRect = tooltip.getBoundingClientRect();
     let left = point.x + 12;
     let top = point.y + 12;
@@ -359,8 +367,6 @@
     if (top + ttRect.height > wrapRect.height) top = Math.max(8, wrapRect.height - ttRect.height - 8);
     tooltip.style.left = left + 'px';
     tooltip.style.top = top + 'px';
-    tooltip.innerHTML = html;
-    tooltip.style.display = 'block';
   }
 
   function getValueAtTime(arr, time){ if(!arr) return null; for(const p of arr) if(p.time === time) return p.value ?? p.close ?? p; return null; }
