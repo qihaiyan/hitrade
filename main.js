@@ -20,7 +20,7 @@
     grid: { vertLines: { color: 'rgba(255,255,255,0.03)' }, horzLines: { color: 'rgba(255,255,255,0.02)' } },
   });
 
-  const candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: true, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
+  const candleSeries = chart.addSeries(LightweightCharts.CandlestickSeries, { upColor: '#26a69a', downColor: '#ef5350', borderVisible: true, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
 
   // Create separate volume chart in its own container
   const volumeContainer = document.getElementById('volume-chart');
@@ -30,17 +30,17 @@
     timeScale: { timeVisible: true, secondsVisible: false },
     grid: { vertLines: { color: 'rgba(255,255,255,0.03)' }, horzLines: { color: 'rgba(255,255,255,0.02)' } },
   });
-  const volumeSeries = volumeChart.addHistogramSeries({ priceFormat: { type: 'volume' }, color: '#26a69a' });
+  const volumeSeries = volumeChart.addSeries(LightweightCharts.HistogramSeries, { priceFormat: { type: 'volume' }, color: '#26a69a' });
 
-  const smaSeries = chart.addLineSeries({ color: '#eab308', lineWidth: 2, visible: false });
-  const emaSeries = chart.addLineSeries({ color: '#60a5fa', lineWidth: 2, visible: false });
+  const smaSeries = chart.addSeries(LightweightCharts.LineSeries, { color: '#eab308', lineWidth: 2, visible: false });
+  const emaSeries = chart.addSeries(LightweightCharts.LineSeries, { color: '#60a5fa', lineWidth: 2, visible: false });
 
   // MACD: macd line, signal line, histogram (placed below volume via scaleMargins)
   // RSI (plotted lower) + overbought/oversold horizontal lines
 
   // Bollinger Bands (upper / lower)
-  const bbUpper = chart.addLineSeries({ color: '#06b6d4', lineWidth: 1, visible: false });
-  const bbLower = chart.addLineSeries({ color: '#06b6d4', lineWidth: 1, visible: false });
+  const bbUpper = chart.addSeries(LightweightCharts.LineSeries, { color: '#06b6d4', lineWidth: 1, visible: false });
+  const bbLower = chart.addSeries(LightweightCharts.LineSeries, { color: '#06b6d4', lineWidth: 1, visible: false });
 
   // Create separate indicator charts for MACD and RSI
   const macdContainer = document.getElementById('macd-chart');
@@ -51,9 +51,9 @@
     rightPriceScale: { visible: false },
     timeScale: { timeVisible: true, secondsVisible: false },
   });
-  const macdLine = macdChart.addLineSeries({ color: '#7c3aed', lineWidth: 2, visible: false });
-  const macdSignal = macdChart.addLineSeries({ color: '#ef4444', lineWidth: 1, visible: false });
-  const macdHist = macdChart.addHistogramSeries({ color: '#60a5fa', visible: false, priceFormat: { type: 'volume' } });
+  const macdLine = macdChart.addSeries(LightweightCharts.LineSeries, { color: '#7c3aed', lineWidth: 2, visible: false });
+  const macdSignal = macdChart.addSeries(LightweightCharts.LineSeries, { color: '#ef4444', lineWidth: 1, visible: false });
+  const macdHist = macdChart.addSeries(LightweightCharts.HistogramSeries, { color: '#60a5fa', visible: false, priceFormat: { type: 'volume' } });
 
   const rsiChart = createChart(rsiContainer, {
     layout: { background: { type: 'solid', color: '#071122' }, textColor: '#9fb4d9' },
@@ -61,9 +61,9 @@
     timeScale: { timeVisible: true, secondsVisible: false },
   });
   // RSI (plotted lower) + overbought/oversold horizontal lines
-  const rsiSeries = rsiChart.addLineSeries({ color: '#f97316', lineWidth: 2, visible: false });
-  const rsiOB = rsiChart.addLineSeries({ color: '#ef4444', lineWidth: 1, lineStyle: window.LightweightCharts ? window.LightweightCharts.LineStyle.Dashed : 1, visible: false });
-  const rsiOS = rsiChart.addLineSeries({ color: '#10b981', lineWidth: 1, lineStyle: window.LightweightCharts ? window.LightweightCharts.LineStyle.Dashed : 1, visible: false });
+  const rsiSeries = rsiChart.addSeries(LightweightCharts.LineSeries, { color: '#f97316', lineWidth: 2, visible: false });
+  const rsiOB = rsiChart.addSeries(LightweightCharts.LineSeries, { color: '#ef4444', lineWidth: 1, lineStyle: window.LightweightCharts ? window.LightweightCharts.LineStyle.Dashed : 1, visible: false });
+  const rsiOS = rsiChart.addSeries(LightweightCharts.LineSeries, { color: '#10b981', lineWidth: 1, lineStyle: window.LightweightCharts ? window.LightweightCharts.LineStyle.Dashed : 1, visible: false });
 
   // RSI overlay canvas for filled 70/30 band
   const rsiOverlay = document.getElementById('rsi-overlay');
@@ -574,22 +574,19 @@
     const key = e.key;
     let handled = true;
     switch (key) {
-      case '+':
-      case '=':
+      case 'ArrowUp':
         zoomFactor(0.85); break;
-      case '-':
+      case 'ArrowDown':
         zoomFactor(1.15); break;
       case 'ArrowLeft':
         panPercent(-0.12); break;
       case 'ArrowRight':
         panPercent(0.12); break;
-      case 's': // toggle SMA
-        smaToggle.click(); break;
       case 'e': // toggle EMA
         emaToggle.click(); break;
       case 'm': // toggle MACD
         document.getElementById('macdToggle')?.click(); break;
-      case 'r': // toggle RSI
+      case 's': // toggle RSI
         document.getElementById('rsiToggle')?.click(); break;
       case 'b': // toggle BB
         document.getElementById('bbToggle')?.click(); break;
