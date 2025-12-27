@@ -412,7 +412,57 @@
     }
 
     showTooltipAtPoint(param.point, html);
+    // sync global vertical crosshair from this chart
+    try {
+      const wrapRect = wrapper.getBoundingClientRect();
+      const cRect = chartContainer.getBoundingClientRect();
+      if (param && param.point) {
+        const gx = Math.round(cRect.left - wrapRect.left + param.point.x);
+        globalCrosshair.style.left = gx + 'px';
+        globalCrosshair.style.display = 'block';
+      } else {
+        globalCrosshair.style.display = 'none';
+      }
+    } catch (e) { }
   });
+
+  // subscribe other charts so moving mouse over them also updates the global crosshair
+  try {
+    volumeChart.subscribeCrosshairMove(param => {
+      if (!param || !param.point) { globalCrosshair.style.display = 'none'; return; }
+      try {
+        const wrapRect = wrapper.getBoundingClientRect();
+        const cRect = document.getElementById('volume-chart').getBoundingClientRect();
+        const gx = Math.round(cRect.left - wrapRect.left + param.point.x);
+        globalCrosshair.style.left = gx + 'px';
+        globalCrosshair.style.display = 'block';
+      } catch (e) { }
+    });
+  } catch (e) { }
+  try {
+    macdChart.subscribeCrosshairMove(param => {
+      if (!param || !param.point) { globalCrosshair.style.display = 'none'; return; }
+      try {
+        const wrapRect = wrapper.getBoundingClientRect();
+        const cRect = document.getElementById('macd-chart').getBoundingClientRect();
+        const gx = Math.round(cRect.left - wrapRect.left + param.point.x);
+        globalCrosshair.style.left = gx + 'px';
+        globalCrosshair.style.display = 'block';
+      } catch (e) { }
+    });
+  } catch (e) { }
+  try {
+    rsiChart.subscribeCrosshairMove(param => {
+      if (!param || !param.point) { globalCrosshair.style.display = 'none'; return; }
+      try {
+        const wrapRect = wrapper.getBoundingClientRect();
+        const cRect = document.getElementById('rsi-chart').getBoundingClientRect();
+        const gx = Math.round(cRect.left - wrapRect.left + param.point.x);
+        globalCrosshair.style.left = gx + 'px';
+        globalCrosshair.style.display = 'block';
+      } catch (e) { }
+    });
+  } catch (e) { }
 
   function pointForSeriesAtTime(series, time) {
     // use series data by searching in its internal data array (we keep our own arrays)
@@ -541,6 +591,17 @@
 
   init();
 
+  // create global vertical crosshair that spans all panels
+  const wrapper = document.getElementById('chart-wrapper');
+  let globalCrosshair = document.getElementById('global-crosshair');
+  if (!globalCrosshair) {
+    globalCrosshair = document.createElement('div');
+    globalCrosshair.id = 'global-crosshair';
+    globalCrosshair.className = 'global-crosshair';
+    globalCrosshair.style.display = 'none';
+    wrapper.appendChild(globalCrosshair);
+  }
+
     // keep indicator charts time range synced with main chart
   chart.timeScale().subscribeVisibleTimeRangeChange(() => {
     const vr = chart.timeScale().getVisibleRange();
@@ -580,6 +641,12 @@
     return { from, to };
   }
 
+  // data bounds helper
+  function getDataTimeBounds() {
+    if (!candleData || candleData.length === 0) return null;
+    return { min: candleData[0].time, max: candleData[candleData.length - 1].time };
+  }
+
   function setVisibleRangeAll(range) {
     chart.timeScale().setVisibleRange(range);
     try { volumeChart.timeScale().setVisibleRange(range); } catch (e) { console.warn('volumeChart.setVisibleRange failed', e); }
@@ -591,9 +658,26 @@
     const vr = getVisibleRangeNums(chart);
     if (!vr) return;
     const span = vr.to - vr.from;
-    const shift = span * pct;
-    const newRange = { from: Math.floor(vr.from + shift), to: Math.ceil(vr.to + shift) };
-    setVisibleRangeAll(newRange);
+    const shift = Math.floor(span * pct);
+    let newFrom = Math.floor(vr.from + shift);
+    let newTo = Math.ceil(vr.to + shift);
+    const bounds = getDataTimeBounds();
+    if (bounds) {
+      // clamp to available data range
+      if (newFrom < bounds.min) {
+        newFrom = bounds.min;
+        newTo = bounds.min + span;
+      }
+      if (newTo > bounds.max) {
+        newTo = bounds.max;
+        newFrom = bounds.max - span;
+      }
+      // ensure valid range
+      if (newFrom >= newTo) return;
+      // if no effective change, don't call setVisibleRange (prevents side-effects)
+      if (newFrom === vr.from && newTo === vr.to) return;
+    }
+    setVisibleRangeAll({ from: newFrom, to: newTo });
   }
 
   function zoomFactor(factor) {
@@ -611,15 +695,22 @@
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
     const key = e.key;
     let handled = true;
+    // ignore modifier combinations to avoid accidental zoom/pan when holding Shift/Ctrl/Alt/Meta
+    if (e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) { return; }
     switch (key) {
       case 'ArrowUp':
-        zoomFactor(0.85); break;
+        zoomFactor(0.85);
+        break;
       case 'ArrowDown':
-        zoomFactor(1.15); break;
+        zoomFactor(1.15);
+        break;
       case 'ArrowLeft':
-        panPercent(-0.12); break;
+        // only pan on left/right — never trigger zoom here
+        panPercent(-0.12);
+        break;
       case 'ArrowRight':
-        panPercent(0.12); break;
+        panPercent(0.12);
+        break;
       case 'e': // toggle EMA
         emaToggle.click(); break;
       case 'm': // toggle MACD

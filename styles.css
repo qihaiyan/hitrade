@@ -157,3 +157,14 @@ button:hover {
         height: 480px
     }
 }
+
+/* 全局垂直十字线，覆盖所有图表面板 */
+.global-crosshair {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: rgba(226,232,240,0.12);
+    pointer-events: none;
+    z-index: 9998;
+}
