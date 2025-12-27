@@ -1,6 +1,4 @@
 (function () {
-  const { createChart } = window.LightweightCharts;
-
   // DOM
   const chartContainer = document.getElementById('chart');
   const drawCanvas = document.getElementById('drawLayer');
@@ -13,7 +11,7 @@
   const exportBtn = document.getElementById('exportBtn');
 
   // Chart
-  let chart = createChart(chartContainer, {
+  let chart = LightweightCharts.createChart(chartContainer, {
     layout: { background: { type: 'solid', color: '#071122' }, textColor: '#dbeafe' },
     rightPriceScale: { visible: true },
     timeScale: { timeVisible: true, secondsVisible: false },
@@ -24,7 +22,7 @@
 
   // Create separate volume chart in its own container
   const volumeContainer = document.getElementById('volume-chart');
-  const volumeChart = createChart(volumeContainer, {
+  const volumeChart = LightweightCharts.createChart(volumeContainer, {
     layout: { background: { type: 'solid', color: '#071122' }, textColor: '#9fb4d9' },
     rightPriceScale: { visible: false },
     timeScale: { timeVisible: true, secondsVisible: false },
@@ -46,7 +44,7 @@
   const macdContainer = document.getElementById('macd-chart');
   const rsiContainer = document.getElementById('rsi-chart');
 
-  const macdChart = createChart(macdContainer, {
+  const macdChart = LightweightCharts.createChart(macdContainer, {
     layout: { background: { type: 'solid', color: '#071122' }, textColor: '#9fb4d9' },
     rightPriceScale: { visible: false },
     timeScale: { timeVisible: true, secondsVisible: false },
@@ -55,7 +53,7 @@
   const macdSignal = macdChart.addSeries(LightweightCharts.LineSeries, { color: '#ef4444', lineWidth: 1, visible: false });
   const macdHist = macdChart.addSeries(LightweightCharts.HistogramSeries, { color: '#60a5fa', visible: false, priceFormat: { type: 'volume' } });
 
-  const rsiChart = createChart(rsiContainer, {
+  const rsiChart = LightweightCharts.createChart(rsiContainer, {
     layout: { background: { type: 'solid', color: '#071122' }, textColor: '#9fb4d9' },
     rightPriceScale: { visible: false },
     timeScale: { timeVisible: true, secondsVisible: false },
