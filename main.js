@@ -13,7 +13,7 @@
   // Chart
   let chart = LightweightCharts.createChart(chartContainer, {
     layout: { background: { type: 'solid', color: '#071122' }, textColor: '#dbeafe' },
-    rightPriceScale: { visible: true },
+    rightPriceScale: { visible: false },
     timeScale: { timeVisible: true, secondsVisible: false },
     grid: { vertLines: { color: 'rgba(255,255,255,0.03)' }, horzLines: { color: 'rgba(255,255,255,0.02)' } },
   });
@@ -48,6 +48,16 @@
     layout: { background: { type: 'solid', color: '#071122' }, textColor: '#9fb4d9' },
     rightPriceScale: { visible: false },
     timeScale: { timeVisible: true, secondsVisible: false },
+    grid: { vertLines: { color: 'rgba(255,255,255,0.03)' }, horzLines: { color: 'rgba(255,255,255,0.02)' } },
+    crosshair: {
+      mode: LightweightCharts.CrosshairMode.Normal,
+      vertLine: {
+        visible: false,
+      },
+      horzLine: {
+        visible: false,
+      },
+    },
   });
   const macdLine = macdChart.addSeries(LightweightCharts.LineSeries, { color: '#7c3aed', lineWidth: 2, visible: false });
   const macdSignal = macdChart.addSeries(LightweightCharts.LineSeries, { color: '#ef4444', lineWidth: 1, visible: false });
@@ -57,6 +67,16 @@
     layout: { background: { type: 'solid', color: '#071122' }, textColor: '#9fb4d9' },
     rightPriceScale: { visible: false },
     timeScale: { timeVisible: true, secondsVisible: false },
+    grid: { vertLines: { color: 'rgba(255,255,255,0.03)' }, horzLines: { color: 'rgba(255,255,255,0.02)' } },
+    crosshair: {
+      mode: LightweightCharts.CrosshairMode.Normal,
+      vertLine: {
+        visible: false,
+      },
+      horzLine: {
+        visible: false,
+      },
+    },
   });
   // RSI (plotted lower) + overbought/oversold horizontal lines
   const rsiSeries = rsiChart.addSeries(LightweightCharts.LineSeries, { color: '#f97316', lineWidth: 2, visible: false });
@@ -413,41 +433,53 @@
 
     showTooltipAtPoint(param.point, html);
     // update per-panel overlays (use chart container id 'chart' as source)
-    try { updatePanelOverlays(param.time, 'chart', param.point); } catch (e) { }
+    try { updatePanelOverlays(t, 'chart', param.point); } catch (e) { }
   });
 
   try {
     macdChart.subscribeCrosshairMove(param => {
-      try {
-        const wrapRect = wrapper.getBoundingClientRect();
-        const cRect = document.getElementById('macd-chart').getBoundingClientRect();
-        let xCoord = null;
-        try { xCoord = macdChart.timeScale().timeToCoordinate(param.time); } catch (e) { xCoord = null; }
-        if (typeof xCoord !== 'number' || isNaN(xCoord)) xCoord = param.point ? param.point.x : null;
-        if (xCoord != null) {
-          const gx = Math.round(cRect.left - wrapRect.left + xCoord);
-        } else {
-        }
-        try { updatePanelOverlays(param.time, 'macd-chart', param.point); } catch (e) { }
-      } catch (e) { }
+      const t = typeof param.time === 'object' && param.time.year ? (new Date(param.time.year, param.time.month - 1, param.time.day).getTime() / 1000) : param.time;
+      try { updatePanelOverlays(t, 'macd-chart', param.point); } catch (e) { }
     });
   } catch (e) { }
   try {
     rsiChart.subscribeCrosshairMove(param => {
-      try {
-        const wrapRect = wrapper.getBoundingClientRect();
-        const cRect = document.getElementById('rsi-chart').getBoundingClientRect();
-        let xCoord = null;
-        try { xCoord = rsiChart.timeScale().timeToCoordinate(param.time); } catch (e) { xCoord = null; }
-        if (typeof xCoord !== 'number' || isNaN(xCoord)) xCoord = param.point ? param.point.x : null;
-        if (xCoord != null) {
-          const gx = Math.round(cRect.left - wrapRect.left + xCoord);
-        } else {
-        }
-        try { updatePanelOverlays(param.time, 'rsi-chart', param.point); } catch (e) { }
-      } catch (e) { }
+      const t = typeof param.time === 'object' && param.time.year ? (new Date(param.time.year, param.time.month - 1, param.time.day).getTime() / 1000) : param.time;
+      try { updatePanelOverlays(t, 'rsi-chart', param.point); } catch (e) { }
     });
   } catch (e) { }
+
+  chart.timeScale().subscribeVisibleLogicalRangeChange(range => {
+    if (range) {
+      try { volumeChart.timeScale().setVisibleLogicalRange(range); } catch (e) { }
+      try { macdChart.timeScale().setVisibleLogicalRange(range); } catch (e) { }
+      try { rsiChart.timeScale().setVisibleLogicalRange(range); } catch (e) { }
+    }
+  });
+
+  volumeChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
+    if (range) {
+      try { chart.timeScale().setVisibleLogicalRange(range); } catch (e) { }
+      try { macdChart.timeScale().setVisibleLogicalRange(range); } catch (e) { }
+      try { rsiChart.timeScale().setVisibleLogicalRange(range); } catch (e) { }
+    }
+  });
+
+  macdChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
+    if (range) {
+      try { chart.timeScale().setVisibleLogicalRange(range); } catch (e) { }
+      try { volumeChart.timeScale().setVisibleLogicalRange(range); } catch (e) { }
+      try { rsiChart.timeScale().setVisibleLogicalRange(range); } catch (e) { }
+    }
+  });
+
+  rsiChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
+    if (range) {
+      try { chart.timeScale().setVisibleLogicalRange(range); } catch (e) { }
+      try { volumeChart.timeScale().setVisibleLogicalRange(range); } catch (e) { }
+      try { macdChart.timeScale().setVisibleLogicalRange(range); } catch (e) { }
+    }
+  });
 
   function pointForSeriesAtTime(series, time) {
     // use series data by searching in its internal data array (we keep our own arrays)
@@ -615,7 +647,9 @@
     for (const id in panelOverlays) {
       const po = panelOverlays[id];
       let x = null;
-      try { x = chart.timeScale().timeToCoordinate(time); } catch (e) { x = null; }
+      const useSourceChart = (id === sourceId);
+      const chartRef = useSourceChart ? po.chartRef : chart;
+      try { x = chartRef.timeScale().timeToCoordinate(time); } catch (e) { x = null; }
       if (typeof x === 'number' && !isNaN(x)) {
         const contRect = po.container.getBoundingClientRect();
         const canvasEl = po.container.querySelector('canvas');
