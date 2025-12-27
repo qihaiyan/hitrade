@@ -185,6 +185,8 @@
     });
   }
 
+  let resizeTimeout;
+
   function resizeAllCharts() {
     const chartContainer = document.getElementById('chart');
     const w = chartContainer.clientWidth;
@@ -199,6 +201,15 @@
     window.ChartApp.drawing.resizeCanvas();
     resizeRSIOverlay();
     drawRSIBand();
+  }
+
+  function debouncedResize() {
+    if (resizeTimeout) {
+      clearTimeout(resizeTimeout);
+    }
+    resizeTimeout = setTimeout(() => {
+      resizeAllCharts();
+    }, 100);
   }
 
   function init() {
@@ -241,7 +252,7 @@
         a.click();
       });
     });
-    window.addEventListener('resize', resizeAllCharts);
+    window.addEventListener('resize', debouncedResize);
   }
 
   window.addEventListener('DOMContentLoaded', () => {
