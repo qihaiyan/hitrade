@@ -158,26 +158,26 @@ button:hover {
     }
 }
 
-/* 全局垂直十字线，覆盖所有图表面板 */
-.global-crosshair {
+/* 每个面板内部的十字线（模拟内置 canvas crosshair） */
+.panel-crosshair-vert, .panel-crosshair-hor {
     position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 1px;
-    background: rgba(226,232,240,0.22);
+    background: rgba(226,232,240,0.18);
     pointer-events: none;
-    z-index: 9999;
-    will-change: left;
+    z-index: 9997;
 }
+.panel-crosshair-vert { width: 1px; top: 0; bottom: 0; will-change: left; }
+.panel-crosshair-hor { height: 1px; left: 0; right: 0; will-change: top; }
 
-/* 横向全局十字线 */
-.global-crosshair-horizontal {
+/* 价格标签（位于每个面板右侧，用于横线对齐显示价格） */
+.panel-price-label {
     position: absolute;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: rgba(226,232,240,0.32);
+    right: 6px;
+    padding: 2px 6px;
+    background: rgba(3,7,18,0.9);
+    color: #e2e8f0;
+    border-radius: 4px;
+    font-size: 12px;
     pointer-events: none;
-    z-index: 9999;
-    will-change: top;
+    z-index: 10001;
+    white-space: nowrap;
 }

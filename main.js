@@ -369,164 +369,85 @@
     tooltip.style.top = top + 'px';
   }
 
-  function getValueAtTime(arr, time){ if(!arr) return null; for(const p of arr) if(p.time === time) return p.value ?? p.close ?? p; return null; }
+  function getValueAtTime(arr, time) { if (!arr) return null; for (const p of arr) if (p.time === time) return p.value ?? p.close ?? p; return null; }
 
   chart.subscribeCrosshairMove(param => {
-    if(!param || !param.time){ if(tooltip) tooltip.style.display='none'; return; }
-    const t = typeof param.time === 'object' && param.time.year ? (new Date(param.time.year, param.time.month-1, param.time.day).getTime()/1000) : param.time;
+    if (!param || !param.time) { if (tooltip) tooltip.style.display = 'none'; return; }
+    const t = typeof param.time === 'object' && param.time.year ? (new Date(param.time.year, param.time.month - 1, param.time.day).getTime() / 1000) : param.time;
     const d = dataMap[t];
-    if(!d){ if(tooltip) tooltip.style.display='none'; return; }
+    if (!d) { if (tooltip) tooltip.style.display = 'none'; return; }
 
     let html = `<div style="margin-bottom:6px"><strong>${symbolInput.value}</strong></div>`;
-    const dt = new Date(t*1000);
+    const dt = new Date(t * 1000);
     html += `<div style="font-size:12px;margin-bottom:6px">${dt.toLocaleString()}</div>`;
     html += `<div style="font-size:13px">O: ${d.open} &nbsp; H: ${d.high} &nbsp; L: ${d.low} &nbsp; C: ${d.close}</div>`;
 
     // volume
     const vol = getValueAtTime(volumeData, t);
-    if(vol != null) html += `<div style="font-size:13px">Vol: ${vol}</div>`;
+    if (vol != null) html += `<div style="font-size:13px">Vol: ${vol}</div>`;
 
     // SMA / EMA
-    if(smaToggle.checked){ const s = pointForSeriesAtTime(smaSeries, t); if(s!=null) html += `<div style="font-size:13px">SMA: ${s}</div>`; }
-    if(emaToggle.checked){ const e = pointForSeriesAtTime(emaSeries, t); if(e!=null) html += `<div style="font-size:13px">EMA: ${e}</div>`; }
+    if (smaToggle.checked) { const s = pointForSeriesAtTime(smaSeries, t); if (s != null) html += `<div style="font-size:13px">SMA: ${s}</div>`; }
+    if (emaToggle.checked) { const e = pointForSeriesAtTime(emaSeries, t); if (e != null) html += `<div style="font-size:13px">EMA: ${e}</div>`; }
 
     // MACD (compute from candleData)
-    if(document.getElementById('macdToggle')?.checked){
-      try{
-        const mac = calcMACD(candleData,12,26,9);
+    if (document.getElementById('macdToggle')?.checked) {
+      try {
+        const mac = calcMACD(candleData, 12, 26, 9);
         const m = getValueAtTime(mac.macd, t);
         const s = getValueAtTime(mac.signal, t);
         const h = getValueAtTime(mac.hist, t);
-        if(m!=null) html += `<div style="font-size:13px">MACD: ${m} &nbsp; Signal: ${s} &nbsp; Hist: ${h}</div>`;
-      }catch(e){ }
+        if (m != null) html += `<div style="font-size:13px">MACD: ${m} &nbsp; Signal: ${s} &nbsp; Hist: ${h}</div>`;
+      } catch (e) { }
     }
 
     // RSI
-    if(document.getElementById('rsiToggle')?.checked){
-      try{
+    if (document.getElementById('rsiToggle')?.checked) {
+      try {
         const rp = Number(rsiPeriodInput?.value) || 14;
         const r = calcRSI(candleData, rp);
         const rv = getValueAtTime(r, t);
-        if(rv!=null) html += `<div style="font-size:13px">RSI(${rp}): ${rv}</div>`;
-      }catch(e){ }
+        if (rv != null) html += `<div style="font-size:13px">RSI(${rp}): ${rv}</div>`;
+      } catch (e) { }
     }
 
     showTooltipAtPoint(param.point, html);
-    // sync global vertical crosshair from this chart (prefer time-based coordinate)
-    try {
-      const wrapRect = wrapper.getBoundingClientRect();
-      const cRect = chartContainer.getBoundingClientRect();
-      let xCoord = null;
-      try { xCoord = chart.timeScale().timeToCoordinate(param.time); } catch (e) { xCoord = null; }
-      if (typeof xCoord !== 'number' || isNaN(xCoord)) xCoord = param.point ? param.point.x : null;
-      if (xCoord != null) {
-        const gx = Math.round(cRect.left - wrapRect.left + xCoord);
-        globalCrosshair.style.left = gx + 'px';
-        globalCrosshair.style.display = 'block';
-      } else {
-        globalCrosshair.style.display = 'none';
-      }
-    } catch (e) { }
-    // horizontal crosshair: use pointer y when available
-    try {
-      const wrapRect = wrapper.getBoundingClientRect();
-      const cRect = chartContainer.getBoundingClientRect();
-      const yCoord = param && param.point ? param.point.y : null;
-      if (typeof yCoord === 'number') {
-        const gy = Math.round(cRect.top - wrapRect.top + yCoord);
-        globalCrosshairH.style.top = gy + 'px';
-        globalCrosshairH.style.display = 'block';
-      } else {
-        globalCrosshairH.style.display = 'none';
-      }
-    } catch (e) { }
+    // update per-panel overlays (use chart container id 'chart' as source)
+    try { updatePanelOverlays(param.time, 'chart', param.point); } catch (e) { }
   });
 
-  // subscribe other charts so moving mouse over them also updates the global crosshair
-    try {
-      volumeChart.subscribeCrosshairMove(param => {
-        if (!param || (!param.point && !param.time)) { globalCrosshair.style.display = 'none'; globalCrosshairH.style.display = 'none'; return; }
-        try {
-          const wrapRect = wrapper.getBoundingClientRect();
-          const cRect = document.getElementById('volume-chart').getBoundingClientRect();
-          let xCoord = null;
-          try { xCoord = volumeChart.timeScale().timeToCoordinate(param.time); } catch (e) { xCoord = null; }
-          if (typeof xCoord !== 'number' || isNaN(xCoord)) xCoord = param.point ? param.point.x : null;
-          if (xCoord != null) {
-            const gx = Math.round(cRect.left - wrapRect.left + xCoord);
-            globalCrosshair.style.left = gx + 'px';
-            globalCrosshair.style.display = 'block';
-          } else {
-            globalCrosshair.style.display = 'none';
-          }
-          // horizontal
-          const yCoord = param.point ? param.point.y : null;
-          if (typeof yCoord === 'number') {
-            const gy = Math.round(cRect.top - wrapRect.top + yCoord);
-            globalCrosshairH.style.top = gy + 'px';
-            globalCrosshairH.style.display = 'block';
-          } else {
-            globalCrosshairH.style.display = 'none';
-          }
-        } catch (e) { }
-      });
-    } catch (e) { }
-    try {
-      macdChart.subscribeCrosshairMove(param => {
-        if (!param || (!param.point && !param.time)) { globalCrosshair.style.display = 'none'; globalCrosshairH.style.display = 'none'; return; }
-        try {
-          const wrapRect = wrapper.getBoundingClientRect();
-          const cRect = document.getElementById('macd-chart').getBoundingClientRect();
-          let xCoord = null;
-          try { xCoord = macdChart.timeScale().timeToCoordinate(param.time); } catch (e) { xCoord = null; }
-          if (typeof xCoord !== 'number' || isNaN(xCoord)) xCoord = param.point ? param.point.x : null;
-          if (xCoord != null) {
-            const gx = Math.round(cRect.left - wrapRect.left + xCoord);
-            globalCrosshair.style.left = gx + 'px';
-            globalCrosshair.style.display = 'block';
-          } else {
-            globalCrosshair.style.display = 'none';
-          }
-          // horizontal
-          const yCoord = param.point ? param.point.y : null;
-          if (typeof yCoord === 'number') {
-            const gy = Math.round(cRect.top - wrapRect.top + yCoord);
-            globalCrosshairH.style.top = gy + 'px';
-            globalCrosshairH.style.display = 'block';
-          } else {
-            globalCrosshairH.style.display = 'none';
-          }
-        } catch (e) { }
-      });
-    } catch (e) { }
-    try {
-      rsiChart.subscribeCrosshairMove(param => {
-        if (!param || (!param.point && !param.time)) { globalCrosshair.style.display = 'none'; globalCrosshairH.style.display = 'none'; return; }
-        try {
-          const wrapRect = wrapper.getBoundingClientRect();
-          const cRect = document.getElementById('rsi-chart').getBoundingClientRect();
-          let xCoord = null;
-          try { xCoord = rsiChart.timeScale().timeToCoordinate(param.time); } catch (e) { xCoord = null; }
-          if (typeof xCoord !== 'number' || isNaN(xCoord)) xCoord = param.point ? param.point.x : null;
-          if (xCoord != null) {
-            const gx = Math.round(cRect.left - wrapRect.left + xCoord);
-            globalCrosshair.style.left = gx + 'px';
-            globalCrosshair.style.display = 'block';
-          } else {
-            globalCrosshair.style.display = 'none';
-          }
-          // horizontal
-          const yCoord = param.point ? param.point.y : null;
-          if (typeof yCoord === 'number') {
-            const gy = Math.round(cRect.top - wrapRect.top + yCoord);
-            globalCrosshairH.style.top = gy + 'px';
-            globalCrosshairH.style.display = 'block';
-          } else {
-            globalCrosshairH.style.display = 'none';
-          }
-        } catch (e) { }
-      });
-    } catch (e) { }
+  try {
+    macdChart.subscribeCrosshairMove(param => {
+      try {
+        const wrapRect = wrapper.getBoundingClientRect();
+        const cRect = document.getElementById('macd-chart').getBoundingClientRect();
+        let xCoord = null;
+        try { xCoord = macdChart.timeScale().timeToCoordinate(param.time); } catch (e) { xCoord = null; }
+        if (typeof xCoord !== 'number' || isNaN(xCoord)) xCoord = param.point ? param.point.x : null;
+        if (xCoord != null) {
+          const gx = Math.round(cRect.left - wrapRect.left + xCoord);
+        } else {
+        }
+        try { updatePanelOverlays(param.time, 'macd-chart', param.point); } catch (e) { }
+      } catch (e) { }
+    });
+  } catch (e) { }
+  try {
+    rsiChart.subscribeCrosshairMove(param => {
+      try {
+        const wrapRect = wrapper.getBoundingClientRect();
+        const cRect = document.getElementById('rsi-chart').getBoundingClientRect();
+        let xCoord = null;
+        try { xCoord = rsiChart.timeScale().timeToCoordinate(param.time); } catch (e) { xCoord = null; }
+        if (typeof xCoord !== 'number' || isNaN(xCoord)) xCoord = param.point ? param.point.x : null;
+        if (xCoord != null) {
+          const gx = Math.round(cRect.left - wrapRect.left + xCoord);
+        } else {
+        }
+        try { updatePanelOverlays(param.time, 'rsi-chart', param.point); } catch (e) { }
+      } catch (e) { }
+    });
+  } catch (e) { }
 
   function pointForSeriesAtTime(series, time) {
     // use series data by searching in its internal data array (we keep our own arrays)
@@ -655,27 +576,112 @@
 
   init();
 
-  // create global vertical crosshair that spans all panels
   const wrapper = document.getElementById('chart-wrapper');
-  let globalCrosshair = document.getElementById('global-crosshair');
-  if (!globalCrosshair) {
-    globalCrosshair = document.createElement('div');
-    globalCrosshair.id = 'global-crosshair';
-    globalCrosshair.className = 'global-crosshair';
-    globalCrosshair.style.display = 'none';
-    wrapper.appendChild(globalCrosshair);
-  }
-  // horizontal global crosshair element
-  let globalCrosshairH = document.getElementById('global-crosshair-h');
-  if (!globalCrosshairH) {
-    globalCrosshairH = document.createElement('div');
-    globalCrosshairH.id = 'global-crosshair-h';
-    globalCrosshairH.className = 'global-crosshair-horizontal';
-    globalCrosshairH.style.display = 'none';
-    wrapper.appendChild(globalCrosshairH);
+
+  // per-panel overlays to simulate built-in canvas crosshair on each chart
+  const panelCharts = [
+    { id: 'chart', chartRef: chart },
+    { id: 'volume-chart', chartRef: volumeChart },
+    { id: 'macd-chart', chartRef: macdChart },
+    { id: 'rsi-chart', chartRef: rsiChart },
+  ];
+  const panelOverlays = {};
+  panelCharts.forEach(p => {
+    const cont = document.getElementById(p.id);
+    if (!cont) return;
+    const v = document.createElement('div');
+    v.className = 'panel-crosshair-vert';
+    v.style.display = 'none';
+    cont.style.position = cont.style.position || 'relative';
+    cont.appendChild(v);
+    const h = document.createElement('div');
+    h.className = 'panel-crosshair-hor';
+    h.style.display = 'none';
+    cont.appendChild(h);
+    const label = document.createElement('div');
+    label.className = 'panel-price-label';
+    label.style.display = 'none';
+    cont.appendChild(label);
+    // map id -> primary series used for price coordinate
+    let seriesRef = null;
+    if (p.id === 'chart') seriesRef = candleSeries;
+    else if (p.id === 'volume-chart') seriesRef = volumeSeries;
+    else if (p.id === 'macd-chart') seriesRef = macdLine;
+    else if (p.id === 'rsi-chart') seriesRef = rsiSeries;
+    panelOverlays[p.id] = { container: cont, chartRef: p.chartRef, vert: v, hor: h, label: label, series: seriesRef };
+  });
+
+  function updatePanelOverlays(time, sourceId, sourcePoint) {
+    for (const id in panelOverlays) {
+      const po = panelOverlays[id];
+      let x = null;
+      try { x = po.chartRef.timeScale().timeToCoordinate(time); } catch (e) { x = null; }
+      if (typeof x === 'number' && !isNaN(x)) {
+        // timeToCoordinate returns coordinate relative to chart content area (canvas).
+        // Adjust by canvas offset within the panel container so overlay aligns with internal canvas drawing.
+        const contRect = po.container.getBoundingClientRect();
+        const canvasEl = po.container.querySelector('canvas');
+        let canvasLeftOffset = 0;
+        if (canvasEl) {
+          try {
+            const canvRect = canvasEl.getBoundingClientRect();
+            canvasLeftOffset = canvRect.left - contRect.left;
+          } catch (e) { canvasLeftOffset = 0; }
+        }
+        po.vert.style.left = Math.round(x + canvasLeftOffset) + 'px';
+        po.vert.style.display = 'block';
+      } else {
+        po.vert.style.display = 'none';
+      }
+      // horizontal: align to series price tick if possible
+      let priceVal = null;
+      if (id === 'chart') {
+        const b = dataMap[time]; if (b) priceVal = b.close;
+      } else if (id === 'volume-chart') {
+        priceVal = getValueAtTime(volumeData, time);
+      } else if (id === 'macd-chart') {
+        try { const mac = calcMACD(candleData, 12, 26, 9); priceVal = getValueAtTime(mac.macd, time); } catch (e) { priceVal = null; }
+      } else if (id === 'rsi-chart') {
+        try { const rp = Number(rsiPeriodInput?.value) || 14; const r = calcRSI(candleData, rp); priceVal = getValueAtTime(r, time); } catch (e) { priceVal = null; }
+      }
+      let y = null;
+      if (priceVal != null && po.series) {
+        try { y = po.series.priceToCoordinate(priceVal); } catch (e) { y = null; }
+      }
+      // fallback: if no price-derived y and this is source panel, use sourcePoint
+      if ((typeof y !== 'number' || isNaN(y)) && sourceId === id && sourcePoint && typeof sourcePoint.y === 'number') {
+        y = sourcePoint.y;
+      }
+      if (typeof y === 'number' && !isNaN(y)) {
+        // adjust y by canvas top offset so it aligns with chart canvas drawing
+        const contRect2 = po.container.getBoundingClientRect();
+        const canvasEl2 = po.container.querySelector('canvas');
+        let canvasTopOffset = 0;
+        if (canvasEl2) {
+          try {
+            const canvRect2 = canvasEl2.getBoundingClientRect();
+            canvasTopOffset = canvRect2.top - contRect2.top;
+          } catch (e) { canvasTopOffset = 0; }
+        }
+        const topPos = Math.round(y + canvasTopOffset);
+        po.hor.style.top = topPos + 'px';
+        po.hor.style.display = 'block';
+        // update label near right side
+        if (priceVal != null) {
+          po.label.textContent = typeof priceVal === 'number' ? priceVal.toFixed(4) : String(priceVal);
+          po.label.style.top = Math.round(topPos - 10) + 'px';
+          po.label.style.display = 'block';
+        } else {
+          po.label.style.display = 'none';
+        }
+      } else {
+        po.hor.style.display = 'none';
+        po.label.style.display = 'none';
+      }
+    }
   }
 
-    // keep indicator charts time range synced with main chart
+  // keep indicator charts time range synced with main chart
   chart.timeScale().subscribeVisibleTimeRangeChange(() => {
     const vr = chart.timeScale().getVisibleRange();
     if (vr && vr.from != null && vr.to != null) {
