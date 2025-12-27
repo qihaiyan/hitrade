@@ -615,10 +615,8 @@
     for (const id in panelOverlays) {
       const po = panelOverlays[id];
       let x = null;
-      try { x = po.chartRef.timeScale().timeToCoordinate(time); } catch (e) { x = null; }
+      try { x = chart.timeScale().timeToCoordinate(time); } catch (e) { x = null; }
       if (typeof x === 'number' && !isNaN(x)) {
-        // timeToCoordinate returns coordinate relative to chart content area (canvas).
-        // Adjust by canvas offset within the panel container so overlay aligns with internal canvas drawing.
         const contRect = po.container.getBoundingClientRect();
         const canvasEl = po.container.querySelector('canvas');
         let canvasLeftOffset = 0;
@@ -688,12 +686,6 @@
       try { volumeChart.timeScale().setVisibleRange(vr); } catch (e) { console.warn('volumeChart.setVisibleRange failed', e); }
       try { macdChart.timeScale().setVisibleRange(vr); } catch (e) { console.warn('macdChart.setVisibleRange failed', e); }
       try { rsiChart.timeScale().setVisibleRange(vr); } catch (e) { console.warn('rsiChart.setVisibleRange failed', e); }
-      // if (macdChart) {
-      //   macdChart.timeScale().setVisibleRange(vr);
-      // }
-      // if (rsiChart) {
-      //   rsiChart.timeScale().setVisibleRange(vr);
-      // }
     }
   });
 
