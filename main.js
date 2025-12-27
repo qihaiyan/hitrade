@@ -196,6 +196,7 @@
 
   function calcRSI(data, period = 14) {
     const res = [];
+    res.push({ time: data[0].time, value: null });
     let gains = 0, losses = 0;
     for (let i = 1; i < data.length; i++) {
       const change = data[i].close - data[i - 1].close;
@@ -204,9 +205,10 @@
         if (i === period) {
           let rs = gains / (losses || 1e-8);
           res.push({ time: data[i].time, value: +(100 - (100 / (1 + rs))).toFixed(4) });
+        } else {
+          res.push({ time: data[i].time, value: null });
         }
       } else {
-        const change = data[i].close - data[i - 1].close;
         gains = (gains * (period - 1) + Math.max(0, change)) / period;
         losses = (losses * (period - 1) + Math.max(0, -change)) / period;
         const rs = gains / (losses || 1e-8);
@@ -652,7 +654,7 @@
       try { x = chartRef.timeScale().timeToCoordinate(time); } catch (e) { x = null; }
       if (typeof x === 'number' && !isNaN(x)) {
         const contRect = po.container.getBoundingClientRect();
-        const canvasEl = po.container.querySelector('canvas');
+        const canvasEl = id === 'rsi-chart' ? po.container.querySelector('canvas:not(.indicator-overlay)') : po.container.querySelector('canvas');
         let canvasLeftOffset = 0;
         if (canvasEl) {
           try {
