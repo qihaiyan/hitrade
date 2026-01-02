@@ -4,14 +4,19 @@ import matplotlib.pyplot as plt
 import os
 import glob
 import warnings
+import argparse
 from datetime import datetime, timedelta
 warnings.filterwarnings('ignore')
+
+# ===================== 设置matplotlib中文字体 =====================
+plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'SimSun']
+plt.rcParams['axes.unicode_minus'] = False
 
 # ===================== 核心配置（可根据需求调整） =====================
 CONFIG = {
     # 横盘判定参数
     "横盘最小天数": 90,          # 底部横盘≥1个月（30天）
-    "横盘最大波动幅度": 0.25,    # 横盘期波动≤25%
+    "横盘最大波动幅度": 0.50,    # 横盘期波动≤50%（放宽以识别更多机会）
     "横盘量能阈值": 0.8,         # 横盘期日均量 ≤ 上涨期日均量×80%（放宽量能要求）
     # N型突破参数（复用之前的核心规则）
     "回调幅度阈值": 0.5,        # 回调≤第一波涨幅50%
@@ -19,9 +24,9 @@ CONFIG = {
     "放量倍数": 1.2,            # 突破放量≥5日均量×1.2
     "缩量倍数": 0.7,            # 回调缩量≤第一波量能×70%
     "突破确认幅度": 0.02,       # 突破前高≥2%
-    "验证天数": 2,              # 突破后站稳2天
+    "验证天数": 3,              # 突破后站稳3天
     # 止盈止损参数
-    "止盈倍数": 1.5,            # 止盈位=第一波涨幅×1.5+突破价
+    "止盈倍数": 0.3,            # 止盈位=第一波涨幅×0.3+突破价
     "止损支撑比例": 0.02        # 止损位=横盘上沿×(1-2%)（容错2%）
 }
 
@@ -97,7 +102,7 @@ def load_and_clean_data(file_path):
     df['date'] = pd.to_datetime(df['date'])
     df = df.sort_values('date').reset_index(drop=True)
     
-    # 过滤最近一年的数据（当前系统时间减一天）
+    # 过滤最近五年的数据（当前系统时间减一天）
     end_date = datetime.now() - timedelta(days=1)
     start_date = end_date - timedelta(days=365*5)
     df = df[(df['date'] >= start_date) & (df['date'] <= end_date)].copy()
@@ -154,10 +159,32 @@ def identify_bottom_consolidation(df):
             }
             consolidation_zones.append(consolidation_info)
     
-    # 去重（合并重叠区间）
+    # 合并重叠的横盘区间
     if consolidation_zones:
-        consolidation_df = pd.DataFrame(consolidation_zones)
-        consolidation_df = consolidation_df.drop_duplicates(subset=['zone_start_date', 'zone_end_date'])
+        # 按开始日期排序
+        consolidation_zones.sort(key=lambda x: x['zone_start_date'])
+        
+        # 合并重叠区间
+        merged_zones = []
+        for zone in consolidation_zones:
+            if not merged_zones:
+                merged_zones.append(zone)
+            else:
+                last_zone = merged_zones[-1]
+                # 检查是否重叠（当前区间的开始日期 <= 上一个区间的结束日期）
+                if zone['zone_start_date'] <= last_zone['zone_end_date']:
+                    # 合并：取最早的开始日期和最晚的结束日期
+                    last_zone['zone_end_date'] = zone['zone_end_date']
+                    last_zone['end_idx'] = zone['end_idx']
+                    # 更新横盘高低点（取合并区间的最值）
+                    last_zone['zone_low'] = min(last_zone['zone_low'], zone['zone_low'])
+                    last_zone['zone_high'] = max(last_zone['zone_high'], zone['zone_high'])
+                    last_zone['zone_mid'] = (last_zone['zone_low'] + last_zone['zone_high']) / 2
+                    last_zone['volatility'] = round((last_zone['zone_high'] - last_zone['zone_low']) / last_zone['zone_low'] * 100, 2)
+                else:
+                    merged_zones.append(zone)
+        
+        consolidation_df = pd.DataFrame(merged_zones)
         return consolidation_df
     else:
         return pd.DataFrame()
@@ -181,6 +208,74 @@ def identify_consolidation_n_breakout(df, consolidation_df):
         start_check_idx = zone_end_idx + 1
         if start_check_idx + CONFIG['验证天数'] + 3 >= len(df):
             continue
+        
+        # ===================== 新增：检测直接突破（不要求N型结构） =====================
+        for i in range(start_check_idx, len(df) - CONFIG['验证天数']):
+            # 检查当天是否突破横盘上沿
+            current_high = df.iloc[i]['high']
+            current_close = df.iloc[i]['close']
+            current_date = df.iloc[i]['date']
+            
+            # 突破条件：最高价突破横盘上沿，且突破幅度≥3%
+            if current_high > zone_high:
+                break_through_rate = (current_high - zone_high) / zone_high
+                if break_through_rate >= CONFIG['突破确认幅度']:
+                    # 新增检查：从横盘结束到突破前一天，不能有过失败的突破
+                    # 即：之前的最高价不能超过横盘上沿
+                    pre_breakout_high = df.iloc[start_check_idx:i]['high'].max()
+                    if pre_breakout_high >= zone_high:
+                        # 之前已经有过突破，跳过这次突破
+                        continue
+                    
+                    # 检查量能：突破当天放量
+                    current_volume = df.iloc[i]['volume']
+                    ma5_volume = df.iloc[i]['ma5_volume']
+                    
+                    if current_volume >= ma5_volume * CONFIG['放量倍数']:
+                        # 检查验证期是否站稳
+                        verify_end_idx = i + CONFIG['验证天数']
+                        if verify_end_idx >= len(df):
+                            continue
+                        verify_low = df.iloc[i:verify_end_idx+1]['low'].min()
+                        
+                        if verify_low >= zone_high * (1 - CONFIG['止损支撑比例']):
+                            # 计算第一波涨幅（从横盘低点到突破高点）
+                            first_wave = current_high - zone_low
+                            
+                            # 计算交易点位
+                            entry_price = round(current_high, 2)
+                            stop_loss_price = round(zone_high * (1 - CONFIG['止损支撑比例']), 2)
+                            take_profit_price = round(entry_price + first_wave * CONFIG['止盈倍数'], 2)
+                            
+                            # 记录直接突破信息
+                            breakout_info = {
+                                # 横盘区间信息
+                                'consolidation_start': zone['zone_start_date'],
+                                'consolidation_end': zone['zone_end_date'],
+                                'zone_low': zone['zone_low'],
+                                'zone_high': zone['zone_high'],
+                                # 直接突破关键点位（N型点位设为空或相同）
+                                'S1': round(zone_low, 2),  # 横盘低点作为S1
+                                'H1': round(current_high, 2),  # 突破高点作为H1
+                                'S2': round(zone_low, 2),  # 无回调，设为横盘低点
+                                'H2': round(current_high, 2),  # 突破高点作为H2
+                                'first_wave': round(first_wave, 2),
+                                'retracement_rate': 0.0,  # 直接突破无回调
+                                'break_through_rate': round(break_through_rate * 100, 2),
+                                # 量能信息
+                                'vol1': round(current_volume, 0),  # 突破量能
+                                'vol2': 0,  # 无回调量能
+                                'vol3': round(current_volume, 0),  # 突破量能
+                                # 交易点位
+                                'entry_price': entry_price,
+                                'stop_loss_price': stop_loss_price,
+                                'take_profit_price': take_profit_price,
+                                'profit_loss_ratio': round((take_profit_price - entry_price) / (entry_price - stop_loss_price), 2),
+                                # 确认日期
+                                'confirm_date': current_date.strftime('%Y-%m-%d')
+                            }
+                            breakout_results.append(breakout_info)
+                            break  # 找到一个直接突破后，跳出循环，避免重复
         
         # 滑动窗口找N型结构（S1→H1→S2→H2）
         for i in range(start_check_idx, len(df) - CONFIG['验证天数']):
@@ -315,12 +410,21 @@ def plot_consolidation_n_breakout(df, breakout_df):
     # 3. 标注N型关键点位
     ax.scatter(pd.to_datetime(first_breakout['confirm_date']), first_breakout['H2'], 
                color='orange', s=150, label='H2（突破确认点）', zorder=5)
-    ax.scatter(plot_df[plot_df['low'] == first_breakout['S1']]['date'], first_breakout['S1'], 
-               color='blue', s=100, label='S1（波谷1）', zorder=5)
-    ax.scatter(plot_df[plot_df['high'] == first_breakout['H1']]['date'], first_breakout['H1'], 
-               color='purple', s=100, label='H1（波峰1）', zorder=5)
-    ax.scatter(plot_df[plot_df['low'] == first_breakout['S2']]['date'], first_breakout['S2'], 
-               color='green', s=100, label='S2（波谷2）', zorder=5)
+    
+    # 在原始数据中查找关键点位的日期
+    s1_date = df[df['low'].round(2) == round(first_breakout['S1'], 2)]['date']
+    h1_date = df[df['high'].round(2) == round(first_breakout['H1'], 2)]['date']
+    s2_date = df[df['low'].round(2) == round(first_breakout['S2'], 2)]['date']
+    
+    if not s1_date.empty:
+        ax.scatter(s1_date.iloc[0], first_breakout['S1'], 
+                   color='blue', s=100, label='S1（波谷1）', zorder=5)
+    if not h1_date.empty:
+        ax.scatter(h1_date.iloc[0], first_breakout['H1'], 
+                   color='purple', s=100, label='H1（波峰1）', zorder=5)
+    if not s2_date.empty:
+        ax.scatter(s2_date.iloc[0], first_breakout['S2'], 
+                   color='green', s=100, label='S2（波谷2）', zorder=5)
     
     # 4. 标注交易点位
     ax.axhline(y=first_breakout['entry_price'], color='red', linestyle='--', linewidth=1.5, label='入场价')
@@ -339,15 +443,30 @@ def plot_consolidation_n_breakout(df, breakout_df):
 
 # ===================== 主函数（执行流程） =====================
 if __name__ == "__main__":
-    # -------------------- 获取data目录下所有txt文件 --------------------
+    # -------------------- 命令行参数解析 --------------------
+    parser = argparse.ArgumentParser(description='底部横盘+N型突破形态识别程序')
+    parser.add_argument('-f', '--file', type=str, help='指定要处理的单个文件（文件名，如：000001.txt）')
+    args = parser.parse_args()
+    
+    # -------------------- 获取要处理的文件列表 --------------------
     data_dir = "./data"
-    txt_files = glob.glob(os.path.join(data_dir, "*.txt"))
     
-    if not txt_files:
-        print(f"未在{data_dir}目录下找到任何.txt文件")
-        exit(1)
+    if args.file:
+        # 指定了单个文件
+        file_path = os.path.join(data_dir, args.file)
+        if not os.path.exists(file_path):
+            print(f"错误：文件不存在 - {file_path}")
+            exit(1)
+        txt_files = [file_path]
+        print(f"指定处理文件：{args.file}")
+    else:
+        # 处理所有文件
+        txt_files = glob.glob(os.path.join(data_dir, "*.txt"))
+        if not txt_files:
+            print(f"未在{data_dir}目录下找到任何.txt文件")
+            exit(1)
+        print(f"找到{len(txt_files)}个数据文件")
     
-    print(f"找到{len(txt_files)}个数据文件")
     print("=" * 60)
     
     # -------------------- 循环处理所有文件 --------------------
@@ -406,15 +525,15 @@ if __name__ == "__main__":
         print(f"\n总计识别到 {len(all_breakout_df)} 个有效「底部横盘+N型突破」形态")
         
         # 过滤最近一个月的数据（当前系统时间减一天）
-        end_date = datetime.now() - timedelta(days=1)
-        start_date = end_date - timedelta(days=30)
-        all_breakout_df['confirm_date'] = pd.to_datetime(all_breakout_df['confirm_date'])
-        all_breakout_df = all_breakout_df[(all_breakout_df['confirm_date'] >= start_date) & 
-                                          (all_breakout_df['confirm_date'] <= end_date)].copy()
-        all_breakout_df = all_breakout_df.reset_index(drop=True)
+        # end_date = datetime.now() - timedelta(days=1)
+        # start_date = end_date - timedelta(days=30)
+        # all_breakout_df['confirm_date'] = pd.to_datetime(all_breakout_df['confirm_date'])
+        # all_breakout_df = all_breakout_df[(all_breakout_df['confirm_date'] >= start_date) & 
+        #                                   (all_breakout_df['confirm_date'] <= end_date)].copy()
+        # all_breakout_df = all_breakout_df.reset_index(drop=True)
         
-        print(f"筛选最近一个月（{start_date.strftime('%Y-%m-%d')} 至 {end_date.strftime('%Y-%m-%d')}）的数据")
-        print(f"筛选后剩余 {len(all_breakout_df)} 个有效形态")
+        # print(f"筛选最近一个月（{start_date.strftime('%Y-%m-%d')} 至 {end_date.strftime('%Y-%m-%d')}）的数据")
+        # print(f"筛选后剩余 {len(all_breakout_df)} 个有效形态")
         
         # 同一股票代码和confirm_date只保留一条记录（保留consolidation_end最近的）
         all_breakout_df['consolidation_end'] = pd.to_datetime(all_breakout_df['consolidation_end'])
