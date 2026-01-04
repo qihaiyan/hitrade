@@ -109,6 +109,151 @@ def calculate_december_gain(df):
     gain = (dec_end_price - dec_start_price) / dec_start_price * 100
     return gain
 
+def calculate_chip_distribution(df, window=60):
+    """计算筹码分布"""
+    if len(df) < 10:
+        return None
+    
+    window = min(window, len(df))
+    recent = df.tail(window).copy()
+    
+    price_min = recent['low'].min()
+    price_max = recent['high'].max()
+    price_range = price_max - price_min
+    
+    if price_range == 0:
+        return None
+    
+    num_bins = 20
+    bin_size = price_range / num_bins
+    bins = [price_min + i * bin_size for i in range(num_bins + 1)]
+    
+    chip_distribution = []
+    for i in range(num_bins):
+        bin_low = bins[i]
+        bin_high = bins[i + 1]
+        
+        mask = (recent['low'] <= bin_high) & (recent['high'] >= bin_low)
+        bin_volume = recent[mask]['volume'].sum()
+        
+        if bin_volume > 0:
+            weighted_price = ((recent[mask]['close'] * recent[mask]['volume']).sum() / bin_volume)
+        else:
+            weighted_price = (bin_low + bin_high) / 2
+        
+        chip_distribution.append({
+            'price_low': bin_low,
+            'price_high': bin_high,
+            'price_mid': (bin_low + bin_high) / 2,
+            'volume': bin_volume,
+            'weighted_price': weighted_price
+        })
+    
+    total_volume = sum(item['volume'] for item in chip_distribution)
+    sorted_chips = sorted(chip_distribution, key=lambda x: x['volume'], reverse=True)
+    top3_volume = sum(item['volume'] for item in sorted_chips[:3])
+    concentration = (top3_volume / total_volume * 100) if total_volume > 0 else 0
+    
+    peaks = []
+    valleys = []
+    for i in range(1, len(chip_distribution) - 1):
+        if (chip_distribution[i]['volume'] > chip_distribution[i-1]['volume'] and 
+            chip_distribution[i]['volume'] > chip_distribution[i+1]['volume']):
+            peaks.append(chip_distribution[i])
+        elif (chip_distribution[i]['volume'] < chip_distribution[i-1]['volume'] and 
+              chip_distribution[i]['volume'] < chip_distribution[i+1]['volume']):
+            valleys.append(chip_distribution[i])
+    
+    return {
+        'distribution': chip_distribution,
+        'concentration': round(concentration, 2),
+        'peaks': peaks,
+        'valleys': valleys,
+        'total_volume': total_volume
+    }
+
+def calculate_chip_profit_ratio(df, current_price=None):
+    """计算筹码获利比例"""
+    if len(df) < 30:
+        return None
+    
+    if current_price is None:
+        current_price = df.iloc[-1]['close']
+    
+    recent = df.tail(60).copy()
+    recent['avg_cost'] = (recent['high'] + recent['low'] + recent['close']) / 3
+    
+    profit_volume = recent[recent['avg_cost'] < current_price]['volume'].sum()
+    total_volume = recent['volume'].sum()
+    
+    profit_ratio = (profit_volume / total_volume * 100) if total_volume > 0 else 0
+    
+    avg_cost = (recent['avg_cost'] * recent['volume']).sum() / total_volume if total_volume > 0 else current_price
+    
+    cost_deviation = ((current_price - avg_cost) / avg_cost * 100) if avg_cost > 0 else 0
+    
+    return {
+        'profit_ratio': round(profit_ratio, 2),
+        'avg_cost': round(avg_cost, 2),
+        'cost_deviation': round(cost_deviation, 2),
+        'current_price': round(current_price, 2)
+    }
+
+def analyze_chip_statistics(df, stock_code):
+    """分析筹码统计"""
+    if len(df) < 30:
+        return None
+    
+    chip_dist = calculate_chip_distribution(df, window=min(60, len(df)))
+    if chip_dist is None:
+        return None
+    
+    chip_profit = calculate_chip_profit_ratio(df)
+    
+    peaks = chip_dist['peaks']
+    valleys = chip_dist['valleys']
+    
+    max_peak = max(peaks, key=lambda x: x['volume']) if peaks else None
+    max_valley = max(valleys, key=lambda x: x['volume']) if valleys else None
+    
+    concentration = chip_dist['concentration']
+    if concentration > 70:
+        chip_status = '高度集中'
+    elif concentration > 50:
+        chip_status = '中度集中'
+    elif concentration > 30:
+        chip_status = '分散'
+    else:
+        chip_status = '极度分散'
+    
+    current_price = df.iloc[-1]['close']
+    if max_peak:
+        price_to_peak = (current_price - max_peak['price_mid']) / max_peak['price_mid'] * 100
+        if price_to_peak > 10:
+            chip_position = '峰上'
+        elif price_to_peak < -10:
+            chip_position = '峰下'
+        else:
+            chip_position = '峰中'
+    else:
+        chip_position = '无法判断'
+    
+    return {
+        'stock_code': stock_code,
+        'chip_concentration': concentration,
+        'chip_status': chip_status,
+        'chip_position': chip_position,
+        'profit_ratio': chip_profit['profit_ratio'],
+        'avg_cost': chip_profit['avg_cost'],
+        'cost_deviation': chip_profit['cost_deviation'],
+        'peak_price': round(max_peak['price_mid'], 2) if max_peak else 0,
+        'peak_volume': round(max_peak['volume'], 2) if max_peak else 0,
+        'valley_price': round(max_valley['price_mid'], 2) if max_valley else 0,
+        'valley_volume': round(max_valley['volume'], 2) if max_valley else 0,
+        'num_peaks': len(peaks),
+        'num_valleys': len(valleys)
+    }
+
 def analyze_stock(df, stock_code):
     """分析单只股票"""
     dec_2025 = df[df['date'].dt.year == 2025]
@@ -119,7 +264,7 @@ def analyze_stock(df, stock_code):
     if pd.isna(dec_start):
         return None
     
-    pre_start = dec_start - pd.Timedelta(days=90)
+    pre_start = dec_start - pd.Timedelta(days=180)
     df_pre = df[(df['date'] >= pre_start) & (df['date'] < dec_start)].copy()
     
     if len(df_pre) < 30:
@@ -162,6 +307,8 @@ def analyze_stock(df, stock_code):
     else:
         ma_trend = '数据不足'
     
+    chip_stats = analyze_chip_statistics(df_pre, stock_code)
+    
     details = {
         'stock_code': stock_code,
         'pre_period_days': len(df_pre),
@@ -180,6 +327,33 @@ def analyze_stock(df, stock_code):
         'ma_trend': ma_trend,
         'is_rising_channel': True
     }
+    
+    if chip_stats:
+        details['chip_concentration'] = chip_stats['chip_concentration']
+        details['chip_status'] = chip_stats['chip_status']
+        details['chip_position'] = chip_stats['chip_position']
+        details['profit_ratio'] = chip_stats['profit_ratio']
+        details['avg_cost'] = chip_stats['avg_cost']
+        details['cost_deviation'] = chip_stats['cost_deviation']
+        details['peak_price'] = chip_stats['peak_price']
+        details['peak_volume'] = chip_stats['peak_volume']
+        details['valley_price'] = chip_stats['valley_price']
+        details['valley_volume'] = chip_stats['valley_volume']
+        details['num_peaks'] = chip_stats['num_peaks']
+        details['num_valleys'] = chip_stats['num_valleys']
+    else:
+        details['chip_concentration'] = 0
+        details['chip_status'] = '无法计算'
+        details['chip_position'] = '无法判断'
+        details['profit_ratio'] = 0
+        details['avg_cost'] = 0
+        details['cost_deviation'] = 0
+        details['peak_price'] = 0
+        details['peak_volume'] = 0
+        details['valley_price'] = 0
+        details['valley_volume'] = 0
+        details['num_peaks'] = 0
+        details['num_valleys'] = 0
     
     return details
 
@@ -246,8 +420,10 @@ def plot_potential_stock(df, stock_code, details):
     
     title_text = f'{stock_code} 潜在主升股票分析\n'
     title_text += f'12月涨幅: {details["december_gain"]:.2f}% | 价格位置: {details["price_position"]:.1f}% | '
-    title_text += f'量能变化: {details["volume_change"]:.2f}倍 | 通道斜率: {details["slope"]:.4f}'
-    ax1.set_title(title_text, fontsize=12, fontweight='bold')
+    title_text += f'量能变化: {details["volume_change"]:.2f}倍 | 通道斜率: {details["slope"]:.4f}\n'
+    title_text += f'筹码集中度: {details["chip_concentration"]:.1f}% | 筹码位置: {details["chip_position"]} | '
+    title_text += f'获利比例: {details["profit_ratio"]:.1f}% | 平均成本: {details["avg_cost"]:.2f}'
+    ax1.set_title(title_text, fontsize=11, fontweight='bold')
     ax1.set_ylabel('价格', fontsize=12)
     ax1.legend(loc='upper left', fontsize=9)
     ax1.grid(True, alpha=0.3)
@@ -354,6 +530,13 @@ def main():
         print(f"  均线趋势: {row['ma_trend']}")
         print(f"  启动前涨幅: {row['pre_gain']:.2f}%")
         print(f"  波动幅度: {row['pre_volatility']:.2f}%")
+        print(f"  筹码集中度: {row['chip_concentration']:.1f}%")
+        print(f"  筹码状态: {row['chip_status']}")
+        print(f"  筹码位置: {row['chip_position']}")
+        print(f"  获利比例: {row['profit_ratio']:.1f}%")
+        print(f"  平均成本: {row['avg_cost']:.2f}")
+        print(f"  主力成本区: {row['peak_price']:.2f}")
+        print(f"  阻力区: {row['valley_price']:.2f}")
     
     print("\n" + "=" * 80)
     print("统计信息:")
@@ -362,11 +545,24 @@ def main():
     print(f"平均价格位置: {filtered['price_position'].mean():.1f}%")
     print(f"平均量能变化: {filtered['volume_change'].mean():.2f}倍")
     print(f"平均通道斜率: {filtered['slope'].mean():.4f}")
+    print(f"平均筹码集中度: {filtered['chip_concentration'].mean():.1f}%")
+    print(f"平均获利比例: {filtered['profit_ratio'].mean():.1f}%")
+    print(f"平均成本偏离度: {filtered['cost_deviation'].mean():.2f}%")
     
     ma_trend_counts = filtered['ma_trend'].value_counts()
     print(f"\n均线趋势分布:")
     for trend, count in ma_trend_counts.items():
         print(f"  {trend}: {count}/{len(filtered)} ({count/len(filtered)*100:.1f}%)")
+    
+    chip_status_counts = filtered['chip_status'].value_counts()
+    print(f"\n筹码状态分布:")
+    for status, count in chip_status_counts.items():
+        print(f"  {status}: {count}/{len(filtered)} ({count/len(filtered)*100:.1f}%)")
+    
+    chip_position_counts = filtered['chip_position'].value_counts()
+    print(f"\n筹码位置分布:")
+    for position, count in chip_position_counts.items():
+        print(f"  {position}: {count}/{len(filtered)} ({count/len(filtered)*100:.1f}%)")
     
     output_file = '上升通道低位缩量潜在主升股票_full.xlsx'
     filtered.to_excel(output_file, index=False)
