@@ -367,7 +367,7 @@ def plot_potential_stock(df, stock_code, details):
     if pd.isna(dec_start):
         return
     
-    analysis_start = dec_start - pd.Timedelta(days=90)
+    analysis_start = dec_start - pd.Timedelta(days=180)
     dec_end = dec_2025['date'].max()
     
     df_analysis = df[(df['date'] >= analysis_start) & (df['date'] <= dec_end)].copy()
@@ -402,7 +402,7 @@ def plot_potential_stock(df, stock_code, details):
         channel_upper = None
         channel_lower = None
     
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(16, 10))
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(16, 13))
     
     ax1.plot(df_analysis['date'], df_analysis['close'], label='收盘价', linewidth=1.5, color='black')
     ax1.plot(df_analysis['date'], df_analysis['ma5'], label='MA5', linewidth=1, alpha=0.7, color='red')
@@ -443,13 +443,65 @@ def plot_potential_stock(df, stock_code, details):
     ax2.legend(loc='upper left', fontsize=9)
     ax2.grid(True, alpha=0.3)
     
+    # 绘制筹码分布图
+    chip_dist = calculate_chip_distribution(df_pre)
+    if chip_dist:
+        distribution = chip_dist['distribution']
+        if distribution:
+            # 提取筹码分布数据
+            price_mids = [item['price_mid'] for item in distribution]
+            volumes = [item['volume'] for item in distribution]
+            
+            # 计算最大成交量用于归一化
+            max_volume = max(volumes) if volumes else 1
+            
+            # 绘制筹码分布（横向柱状图）
+            bar_width = (max(price_mids) - min(price_mids)) / len(price_mids) * 0.8
+            ax3.barh(price_mids, volumes, height=bar_width, align='center', alpha=0.7, color='orange')
+            
+            # 添加筹码峰
+            if chip_dist['peaks']:
+                for peak in chip_dist['peaks']:
+                    ax3.axhline(y=peak['price_mid'], color='red', linestyle='--', linewidth=1.5, alpha=0.8)
+                    ax3.text(max_volume * 1.05, peak['price_mid'], f'峰\n{peak["price_mid"]:.2f}', 
+                             va='center', fontsize=8, color='red', fontweight='bold')
+            
+            # 添加筹码谷
+            if chip_dist['valleys']:
+                for valley in chip_dist['valleys']:
+                    ax3.axhline(y=valley['price_mid'], color='green', linestyle='--', linewidth=1.5, alpha=0.8)
+                    ax3.text(max_volume * 1.05, valley['price_mid'], f'谷\n{valley["price_mid"]:.2f}', 
+                             va='center', fontsize=8, color='green', fontweight='bold')
+            
+            # 添加平均成本线
+            avg_cost = details.get('avg_cost', 0)
+            if avg_cost > 0:
+                ax3.axhline(y=avg_cost, color='blue', linestyle='-', linewidth=2, alpha=0.8, label=f'平均成本: {avg_cost:.2f}')
+            
+            # 设置当前价格线
+            current_price = df_pre.iloc[-1]['close']
+            ax3.axhline(y=current_price, color='black', linestyle='-', linewidth=2.5, alpha=0.9, label=f'当前价格: {current_price:.2f}')
+            
+            ax3.set_title('筹码分布', fontsize=11, fontweight='bold')
+            ax3.set_xlabel('成交量', fontsize=12)
+            ax3.set_ylabel('价格', fontsize=12)
+            ax3.legend(loc='upper right', fontsize=9)
+            ax3.grid(True, alpha=0.3)
+            ax3.set_xlim(0, max_volume * 1.2)  # 留出空间显示标签
+    
     plt.tight_layout()
     
+    # 创建图表保存目录
+    charts_dir = 'potential_stocks_charts'
+    if not os.path.exists(charts_dir):
+        os.makedirs(charts_dir)
+    
     filename = f'{stock_code.replace("#", "_")}_潜在主升.png'
-    plt.savefig(filename, dpi=150, bbox_inches='tight')
+    full_path = os.path.join(charts_dir, filename)
+    plt.savefig(full_path, dpi=150, bbox_inches='tight')
     plt.close()
     
-    print(f"  已保存: {filename}")
+    print(f"  已保存: {full_path}")
 
 def main():
     """主函数：筛选符合上升通道+低位+缩量但未启动主升的股票"""
@@ -488,16 +540,18 @@ def main():
     
     df_results = pd.DataFrame(all_results)
     
-    print(f"\n筛选条件:")
+    print(f"筛选条件:")
     print(f"  - 上升通道: 是")
     print(f"  - 价格位置 < 30% (低位)")
     print(f"  - 量能变化 < 0.8倍 (缩量)")
     print(f"  - 12月涨幅 < 20% (未启动主升)")
+    print(f"  - 筹码位置: 峰下")
     
     filtered = df_results[
         (df_results['price_position'] < 30) &
         (df_results['volume_change'] < 0.8) &
-        (df_results['december_gain'] < 20)
+        (df_results['december_gain'] < 20) &
+        (df_results['chip_position'] == '峰下')
     ].copy()
     
     print(f"\n符合条件股票数量: {len(filtered)} 只")
@@ -507,7 +561,8 @@ def main():
         filtered = df_results[
             (df_results['price_position'] < 40) &
             (df_results['volume_change'] < 1.0) &
-            (df_results['december_gain'] < 30)
+            (df_results['december_gain'] < 30) &
+            (df_results['chip_position'] == '峰下')
         ].copy()
         print(f"放宽条件后符合数量: {len(filtered)} 只")
     
