@@ -132,24 +132,25 @@ const indicators = {
   
   // Exponential Moving Average
   calcEMA(data: ChartData[], period: number): LightweightCharts.LineData[] {
-    if (!data || data.length < period) return []
+    if (!data || data.length === 0) return []
     const result: LightweightCharts.LineData[] = []
     const k = 2 / (period + 1)
     
-    // Calculate first average (SMA)
+    // Calculate first average (SMA) - if data length < period, use all available data
+    const smaPeriod = Math.min(period, data.length)
     let sum = 0
-    for (let i = 0; i < period; i++) {
+    for (let i = 0; i < smaPeriod; i++) {
       sum += data[i].close
     }
-    let ema = sum / period
+    let ema = sum / smaPeriod
     
     result.push({
-      time: data[period - 1].time,
+      time: data[smaPeriod - 1].time,
       value: ema
     })
     
     // Calculate remaining averages
-    for (let i = period; i < data.length; i++) {
+    for (let i = smaPeriod; i < data.length; i++) {
       ema = data[i].close * k + ema * (1 - k)
       result.push({
         time: data[i].time,
@@ -160,54 +161,54 @@ const indicators = {
     return result
   },
   
-  // Moving Average Convergence Divergence
+  // Moving Average Convergence Divergence (using macd.js logic)
   calcMACD(data: ChartData[], fastPeriod = 12, slowPeriod = 26, signalPeriod = 9): {
     macd: LightweightCharts.LineData[],
     signal: LightweightCharts.LineData[],
     histogram: LightweightCharts.HistogramData[]
   } {
-    const fastEMA = this.calcEMA(data, fastPeriod)
-    const slowEMA = this.calcEMA(data, slowPeriod)
-    const macd: LightweightCharts.LineData[] = []
-    const histogram: LightweightCharts.HistogramData[] = []
-    
-    // Calculate MACD line
-    for (let i = 0; i < fastEMA.length && i < slowEMA.length; i++) {
-      const fast = fastEMA[i]
-      const slow = slowEMA[i]
-      if (fast.time && slow.time && fast.time === slow.time) {
-        const macdValue = fast.value! - slow.value!
-        macd.push({
-          time: fast.time,
-          value: macdValue
-        })
+    // Helper function to calculate EMA values (from macd.js)
+    const calcEMAValues = (input: ChartData[], period: number): LightweightCharts.LineData[] => {
+      const res: LightweightCharts.LineData[] = [];
+      const k = 2 / (period + 1);
+      let ema = input[0].close;
+      for (let i = 0; i < input.length; i++) {
+        const price = input[i].close;
+        ema = i === 0 ? price : (price * k + ema * (1 - k));
+        res.push({ time: input[i].time as LightweightCharts.UTCTimestamp, value: +ema.toFixed(4) });
       }
+      return res;
+    };
+
+    const fastEMA = calcEMAValues(data, fastPeriod);
+    const slowEMA = calcEMAValues(data, slowPeriod);
+    const macd: LightweightCharts.LineData[] = [];
+
+    // Calculate MACD line for all data points
+    for (let i = 0; i < data.length; i++) {
+      const m = { 
+        time: data[i].time as LightweightCharts.UTCTimestamp, 
+        value: +(fastEMA[i].value! - slowEMA[i].value!).toFixed(4) 
+      };
+      macd.push(m);
     }
-    
+
     // Calculate signal line
-    const signal = this.calcEMA(
-      macd.map(m => ({
-        ...m,
-        close: m.value!
-      })) as ChartData[],
-      signalPeriod
-    )
-    
+    const macdValues = macd.map(m => ({
+      time: m.time,
+      close: m.value!
+    })) as ChartData[];
+
+    const signalSeries = calcEMAValues(macdValues, signalPeriod);
+
     // Calculate histogram
-    for (let i = 0; i < macd.length && i < signal.length; i++) {
-      const macdValue = macd[i]
-      const signalValue = signal[i]
-      if (macdValue.time && signalValue.time && macdValue.time === signalValue.time) {
-        const histogramValue = macdValue.value! - signalValue.value!
-        histogram.push({
-          time: macdValue.time,
-          value: histogramValue,
-          color: histogramValue >= 0 ? '#26a69a' : '#ef5350'
-        })
-      }
-    }
-    
-    return { macd, signal, histogram }
+    const histogram: LightweightCharts.HistogramData[] = macd.map((m, i) => ({
+      time: m.time,
+      value: +(m.value! - signalSeries[i].value!).toFixed(4),
+      color: (m.value! - signalSeries[i].value!) >= 0 ? '#26a69a' : '#ef5350'
+    }));
+
+    return { macd, signal: signalSeries, histogram };
   },
   
   // Relative Strength Index
