@@ -211,54 +211,49 @@ const indicators = {
     return { macd, signal: signalSeries, histogram };
   },
   
-  // Relative Strength Index
+  // Relative Strength Index (using rsi.js logic with complete data points)
   calcRSI(data: ChartData[], period = 14): LightweightCharts.LineData[] {
-    if (!data || data.length < period + 1) return []
-    const result: LightweightCharts.LineData[] = []
-    const changes: number[] = []
+    const res: LightweightCharts.LineData[] = [];
+    let gains = 0, losses = 0;
     
-    // Calculate price changes
-    for (let i = 1; i < data.length; i++) {
-      changes.push(data[i].close - data[i - 1].close)
-    }
-    
-    // Calculate first average gains and losses
-    let avgGain = 0
-    let avgLoss = 0
-    for (let i = 0; i < period; i++) {
-      if (changes[i] > 0) {
-        avgGain += changes[i]
+    // Calculate RSI for all data points
+    for (let i = 0; i < data.length; i++) {
+      if (i === 0) {
+        // For the first data point, use the same value as the second point (or default to 50)
+        res.push({ time: data[i].time as LightweightCharts.UTCTimestamp, value: 50 });
       } else {
-        avgLoss += Math.abs(changes[i])
+        const change = data[i].close - data[i - 1].close;
+        
+        if (i <= period) {
+          if (change > 0) {
+            gains += change;
+          } else {
+            losses += Math.abs(change);
+          }
+          
+          if (i === period) {
+            const rs = gains / (losses || 1e-8);
+            const rsiValue = +(100 - (100 / (1 + rs))).toFixed(4);
+            res.push({ time: data[i].time as LightweightCharts.UTCTimestamp, value: rsiValue });
+            
+            // Fill previous points with the same RSI value to match K线数量
+            for (let j = 1; j < period; j++) {
+              res[j] = { time: data[j].time as LightweightCharts.UTCTimestamp, value: rsiValue };
+            }
+          } else {
+            // Temporarily push a placeholder, will be replaced later
+            res.push({ time: data[i].time as LightweightCharts.UTCTimestamp, value: 50 });
+          }
+        } else {
+          gains = (gains * (period - 1) + Math.max(0, change)) / period;
+          losses = (losses * (period - 1) + Math.max(0, -change)) / period;
+          const rs = gains / (losses || 1e-8);
+          res.push({ time: data[i].time as LightweightCharts.UTCTimestamp, value: +(100 - (100 / (1 + rs))).toFixed(4) });
+        }
       }
     }
-    avgGain /= period
-    avgLoss /= period
     
-    // Calculate first RSI
-    const rs = avgLoss === 0 ? 100 : 100 - (100 / (1 + (avgGain / avgLoss)))
-    result.push({
-      time: data[period].time,
-      value: rs
-    })
-    
-    // Calculate remaining RSI values
-    for (let i = period; i < changes.length; i++) {
-      const change = changes[i]
-      const gain = change > 0 ? change : 0
-      const loss = change < 0 ? Math.abs(change) : 0
-      
-      avgGain = (avgGain * (period - 1) + gain) / period
-      avgLoss = (avgLoss * (period - 1) + loss) / period
-      
-      const rs = avgLoss === 0 ? 100 : 100 - (100 / (1 + (avgGain / avgLoss)))
-      result.push({
-        time: data[i + 1].time,
-        value: rs
-      })
-    }
-    
-    return result
+    return res;
   },
   
   // Bollinger Bands
