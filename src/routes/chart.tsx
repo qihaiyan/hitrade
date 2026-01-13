@@ -330,6 +330,7 @@ function ChartPage() {
   const macdHistogramSeriesRef = useRef<LightweightCharts.ISeriesApi<'Histogram'> | null>(null)
   const rsiChartRef = useRef<LightweightCharts.IChartApi | null>(null)
   const rsiSeriesRef = useRef<LightweightCharts.ISeriesApi<'Line'> | null>(null)
+  const eventListenersRef = useRef<{ chartContainer?: HTMLElement | null; volumeContainer?: HTMLElement | null; macdContainer?: HTMLElement | null; rsiContainer?: HTMLElement | null; handleZoom?: (e: WheelEvent) => void }>({})
   
   // State
   const [timeframe, setTimeframe] = useState<string>('1m')
@@ -467,6 +468,18 @@ function ChartPage() {
         horzLine: { visible: false }
       }
     }) : null
+
+    // Force resize to ensure charts are rendered properly
+    chart.applyOptions({ width: chartContainerRef.current?.clientWidth || 800, height: 400 })
+    volumeChart.applyOptions({ width: volumeContainerRef.current?.clientWidth || 800, height: 120 })
+    macdChart?.applyOptions({ width: macdContainerRef.current?.clientWidth || 800, height: 120 })
+    rsiChart?.applyOptions({ width: rsiContainerRef.current?.clientWidth || 800, height: 120 })
+
+    // Call resize explicitly to ensure proper rendering
+    chart.resize(chartContainerRef.current?.clientWidth || 800, 400)
+    volumeChart.resize(volumeContainerRef.current?.clientWidth || 800, 120)
+    macdChart?.resize(macdContainerRef.current?.clientWidth || 800, 120)
+    rsiChart?.resize(rsiContainerRef.current?.clientWidth || 800, 120)
     
     // Add series
     const candleSeries = chart.addSeries(LightweightCharts.CandlestickSeries, {
@@ -544,8 +557,9 @@ function ChartPage() {
       }) as LightweightCharts.ISeriesApi<'Line'>
     }
     
-    // Connect time scales
-    const syncCharts = () => {
+    // Connect time scales and price scales for full synchronization
+    // Sync time scales
+    const syncTimeScales = () => {
       const range = chart.timeScale().getVisibleLogicalRange()
       if (range) {
         volumeChart.timeScale().setVisibleLogicalRange(range)
@@ -554,8 +568,50 @@ function ChartPage() {
       }
     }
     
-    chart.timeScale().subscribeVisibleLogicalRangeChange(syncCharts)
-    volumeChart.timeScale().subscribeVisibleLogicalRangeChange(syncCharts)
+    // Sync price scales - volume, MACD, and RSI charts have fixed height, so only sync time scales for them
+    // For main chart, we'll handle mouse wheel zoom specifically
+    let isSyncing = false
+    
+    // Handle mouse wheel for zoom sync - use event delegation to prevent duplicate events
+    const handleZoom = (_e: WheelEvent) => {
+      if (isSyncing) return
+      isSyncing = true
+      
+      // The main chart handles zooming, others will sync time scale
+      // The price axis scaling is handled by each chart independently based on their data
+      
+      // Small delay to ensure main chart has updated before syncing
+      setTimeout(() => {
+        syncTimeScales()
+        isSyncing = false
+      }, 10)
+    }
+    
+    // Add wheel event listeners to all chart containers
+    const chartContainer = chartContainerRef.current
+    const volumeContainer = volumeContainerRef.current
+    const macdContainer = macdContainerRef.current
+    const rsiContainer = rsiContainerRef.current
+    
+    chartContainer?.addEventListener('wheel', handleZoom, { passive: false })
+    volumeContainer?.addEventListener('wheel', handleZoom, { passive: false })
+    macdContainer?.addEventListener('wheel', handleZoom, { passive: false })
+    rsiContainer?.addEventListener('wheel', handleZoom, { passive: false })
+    
+    // Subscribe to time scale changes
+    chart.timeScale().subscribeVisibleLogicalRangeChange(syncTimeScales)
+    volumeChart.timeScale().subscribeVisibleLogicalRangeChange(syncTimeScales)
+    macdChart?.timeScale().subscribeVisibleLogicalRangeChange(syncTimeScales)
+    rsiChart?.timeScale().subscribeVisibleLogicalRangeChange(syncTimeScales)
+    
+    // Store event listeners for cleanup
+    eventListenersRef.current = {
+      chartContainer,
+      volumeContainer,
+      macdContainer,
+      rsiContainer,
+      handleZoom
+    }
     
     // Setup crosshair
     chart.subscribeCrosshairMove(param => {
@@ -693,7 +749,73 @@ function ChartPage() {
     } else if (rsiSeriesRef.current) {
       rsiSeriesRef.current.applyOptions({ visible: false })
     }
+    
+    // Force complete rendering of all charts, regardless of mouse position
+    // This robust approach ensures charts display correctly after indicator visibility changes
+    
+    // Function to trigger complete chart update
+    const forceChartUpdate = () => {
+      const width = chartContainerRef.current?.clientWidth || 800
+      const height = 400
+      const indicatorHeight = 120
+      
+      // Resize all charts
+      chartRef.current?.resize(width, height)
+      volumeChartRef.current?.resize(width, indicatorHeight)
+      macdChartRef.current?.resize(width, indicatorHeight)
+      rsiChartRef.current?.resize(width, indicatorHeight)
+      
+      // Force time scale update to ensure proper data range display
+      const mainRange = chartRef.current?.timeScale().getVisibleLogicalRange()
+      if (mainRange) {
+        volumeChartRef.current?.timeScale().setVisibleLogicalRange(mainRange)
+        macdChartRef.current?.timeScale().setVisibleLogicalRange(mainRange)
+        rsiChartRef.current?.timeScale().setVisibleLogicalRange(mainRange)
+      }
+      
+      // Force redraw by toggling autoSize temporarily (if supported)
+      if (chartRef.current?.applyOptions) {
+        chartRef.current.applyOptions({ autoSize: false })
+        chartRef.current.applyOptions({ autoSize: false })
+      }
+    }
+    
+    // Use requestAnimationFrame to ensure updates happen in browser rendering cycle
+    requestAnimationFrame(() => {
+      forceChartUpdate()
+      
+      // Additional updates with increasing delays for maximum reliability
+      setTimeout(() => {
+        forceChartUpdate()
+      }, 50)
+      
+      setTimeout(() => {
+        forceChartUpdate()
+      }, 150)
+      
+      setTimeout(() => {
+        forceChartUpdate()
+      }, 300)
+      
+      // Final update to ensure complete stabilization
+      setTimeout(() => {
+        forceChartUpdate()
+      }, 500)
+    })
   }, [showSMA, showEMA, showMACD, showRSI, smaPeriod, emaPeriod, rsiPeriod, showBB])
+
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      chartRef.current?.resize(chartContainerRef.current?.clientWidth || 800, 400)
+      volumeChartRef.current?.resize(volumeContainerRef.current?.clientWidth || 800, 120)
+      macdChartRef.current?.resize(macdContainerRef.current?.clientWidth || 800, 120)
+      rsiChartRef.current?.resize(rsiContainerRef.current?.clientWidth || 800, 120)
+    }
+    
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
   
   // Handle timeframe change
   const handleTimeframeChange = useCallback((tf: string) => {
@@ -722,6 +844,15 @@ function ChartPage() {
     initializeCharts()
     
     return () => {
+      // Clean up event listeners
+      const eventListeners = eventListenersRef.current
+      if (eventListeners && eventListeners.handleZoom) {
+        eventListeners.chartContainer?.removeEventListener('wheel', eventListeners.handleZoom)
+        eventListeners.volumeContainer?.removeEventListener('wheel', eventListeners.handleZoom)
+        eventListeners.macdContainer?.removeEventListener('wheel', eventListeners.handleZoom)
+        eventListeners.rsiContainer?.removeEventListener('wheel', eventListeners.handleZoom)
+      }
+      
       // Clean up charts
       chartRef.current?.remove()
       volumeChartRef.current?.remove()
