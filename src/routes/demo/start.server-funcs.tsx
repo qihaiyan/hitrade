@@ -3,8 +3,8 @@ import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { getUserPositions, addUserPosition, updateUserPosition, deleteUserPosition } from '../../data/userPositions'
 import { ensureDefaultUser } from '../../data/users'
-import { PositionTable } from './components/PositionTable'
-import { AddPositionModal } from './components/AddPositionModal'
+import { PositionTable } from '../../components/PositionTable'
+import { AddPositionModal } from '../../components/AddPositionModal'
 
 // 服务器函数
 const getPositions = createServerFn({ method: 'GET' })
