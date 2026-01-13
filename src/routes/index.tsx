@@ -76,7 +76,7 @@ function App() {
             Build modern applications with server functions, streaming, and type
             safety.
           </p>
-          <div className="flex flex-col items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-4">
             <a
               href="https://tanstack.com/start"
               target="_blank"
@@ -84,6 +84,12 @@ function App() {
               className="px-8 py-3 bg-cyan-500 hover:bg-cyan-600 text-white font-semibold rounded-lg transition-colors shadow-lg shadow-cyan-500/50"
             >
               Documentation
+            </a>
+            <a
+              href="/chart"
+              className="px-8 py-3 bg-transparent hover:bg-slate-700 text-white border border-slate-600 hover:border-cyan-500 font-semibold rounded-lg transition-colors"
+            >
+              Chart Demo
             </a>
             <p className="text-gray-400 text-sm mt-2">
               Begin your TanStack Start journey by editing{' '}

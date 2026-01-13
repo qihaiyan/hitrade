@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { getUserPositions, addUserPosition, updateUserPosition, deleteUserPosition } from '../../data/userPositions'
 import { ensureDefaultUser } from '../../data/users'
@@ -59,7 +59,7 @@ export const Route = createFileRoute('/demo/start/server-funcs')({
 })
 
 function Home() {
-  const router = useRouter()
+  // router not used yet - will be used for navigation in future
   let positions = Route.useLoaderData() as any[]
   const [showModal, setShowModal] = useState(false)
 
