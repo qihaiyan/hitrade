@@ -250,5 +250,56 @@ export async function initializeDatabase() {
       stmt.run('Get groceries')
       stmt.run('Buy a new phone')
     }
+    
+    // 如果stock_price表没有数据，插入一些示例股票价格数据
+    const stockCount = (db.prepare('SELECT COUNT(*) as count FROM stock_price').get() as { count: number }).count
+    if (stockCount === 0) {
+      const stocks = [
+        { code: '600000.SH', name: '浦发银行', price: 9.50, exchange: '上交所' },
+        { code: '600036.SH', name: '招商银行', price: 38.20, exchange: '上交所' },
+        { code: '000001.SZ', name: '平安银行', price: 12.85, exchange: '深交所' },
+        { code: '000858.SZ', name: '五粮液', price: 165.50, exchange: '深交所' },
+        { code: '000002.SZ', name: '万科A', price: 14.20, exchange: '深交所' },
+        { code: '601318.SH', name: '中国平安', price: 45.80, exchange: '上交所' },
+        { code: '600519.SH', name: '贵州茅台', price: 1850.00, exchange: '上交所' },
+        { code: '002415.SZ', name: '海康威视', price: 35.20, exchange: '深交所' },
+        { code: '300750.SZ', name: '宁德时代', price: 285.00, exchange: '深交所' },
+        { code: '601888.SH', name: '中国中免', price: 138.50, exchange: '上交所' }
+      ]
+      
+      const stmt = db.prepare(`
+        INSERT INTO stock_price (
+          stock_code, stock_name, latest_price, pre_close, open, high, low, 
+          change, change_percent, volume, amount, exchange
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+      
+      stocks.forEach(stock => {
+        const preClose = stock.price * (0.95 + Math.random() * 0.1) // 前收盘价在当前价格的95%-105%之间
+        const open = preClose * (0.98 + Math.random() * 0.04) // 开盘价在前收盘价的98%-102%之间
+        const high = open * (1.00 + Math.random() * 0.05) // 最高价在开盘价的100%-105%之间
+        const low = open * (0.95 + Math.random() * 0.05) // 最低价在开盘价的95%-100%之间
+        const close = low + (high - low) * Math.random() // 收盘价在最高价和最低价之间
+        const change = close - preClose
+        const changePercent = (change / preClose) * 100
+        const volume = Math.floor(1000000 + Math.random() * 9000000) // 成交量在100-1000万之间
+        const amount = close * volume
+        
+        stmt.run(
+          stock.code,
+          stock.name,
+          close,
+          preClose,
+          open,
+          high,
+          low,
+          change,
+          changePercent,
+          volume,
+          amount,
+          stock.exchange
+        )
+      })
+    }
   })
 }
