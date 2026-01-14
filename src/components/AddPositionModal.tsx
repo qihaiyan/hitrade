@@ -1,5 +1,7 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useEffect } from 'react'
 import { useRouter } from '@tanstack/react-router'
+import { getAllStockPrice } from '../data/stockPriceClient'
+import type { StockPrice } from '../data/stockPrice'
 
 export interface NewPosition {
   stock_id: string
@@ -32,6 +34,71 @@ export function AddPositionModal({ isOpen, onClose, onAdd }: AddPositionModalPro
     profit_percent: 0,
     notes: ''
   })
+  
+  const [stocks, setStocks] = useState<StockPrice[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  
+  // 加载股票数据
+  const loadStocks = useCallback(async () => {
+    if (!isOpen) return
+    
+    setIsLoading(true)
+    try {
+      const stockList = await getAllStockPrice()
+      setStocks(stockList)
+    } catch (error) {
+      console.error('加载股票数据失败:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [isOpen])
+  
+  // 当模态框打开时加载股票数据
+  useEffect(() => {
+    if (isOpen) {
+      loadStocks()
+    }
+  }, [isOpen, loadStocks])
+  
+  // 筛选股票数据
+  const filteredStocks = stocks.filter(stock => 
+    stock.stock_code.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    stock.stock_name.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+  
+  // 选择股票
+  const selectStock = useCallback((stock: StockPrice) => {
+    setNewPosition(prev => ({
+      ...prev,
+      stock_id: stock.stock_code,
+      symbol: stock.stock_code,
+      stock_name: stock.stock_name,
+      market_value: stock.latest_price * prev.quantity,
+      profit: (stock.latest_price - prev.avg_cost) * prev.quantity,
+      profit_percent: prev.avg_cost > 0 ? ((stock.latest_price - prev.avg_cost) / prev.avg_cost) * 100 : 0
+    }))
+    setIsDropdownOpen(false)
+    setSearchTerm('')
+  }, [])
+  
+  // 当数量或平均成本变化时更新市值和盈亏
+  const updatePositionMetrics = useCallback(() => {
+    setNewPosition(prev => {
+      const selectedStock = stocks.find(stock => stock.stock_code === prev.symbol)
+      const marketValue = selectedStock ? selectedStock.latest_price * prev.quantity : 0
+      const profit = selectedStock ? (selectedStock.latest_price - prev.avg_cost) * prev.quantity : 0
+      const profitPercent = prev.avg_cost > 0 ? ((marketValue / prev.quantity - prev.avg_cost) / prev.avg_cost) * 100 : 0
+      
+      return {
+        ...prev,
+        market_value: marketValue,
+        profit,
+        profit_percent: profitPercent
+      }
+    })
+  }, [stocks])
 
   // 提交新增持仓
   const submitNewPosition = useCallback(async () => {
@@ -69,55 +136,117 @@ export function AddPositionModal({ isOpen, onClose, onAdd }: AddPositionModalPro
         </div>
         <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* 股票选择组合框 */}
+          <div className="relative col-span-2 md:col-span-1">
+            <label className="block text-sm font-medium text-white mb-2">搜索股票代码或名称</label>
             <input
               type="text"
-              placeholder="股票代码"
-              value={newPosition.symbol}
-              onChange={(e) => setNewPosition({...newPosition, symbol: e.target.value})}
+              placeholder="搜索股票代码或名称"
+              value={searchTerm || newPosition.symbol}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onFocus={() => setIsDropdownOpen(true)}
               className="w-full px-4 py-3 rounded-lg border border-white/20 bg-white/10 backdrop-blur-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
             />
+            
+            {/* 下拉列表 */}
+            {isDropdownOpen && (
+              <div className="absolute z-10 w-full mt-1 max-h-60 overflow-y-auto bg-gray-900 border border-white/20 rounded-lg shadow-lg">
+                {isLoading ? (
+                  <div className="px-4 py-3 text-gray-400">加载中...</div>
+                ) : filteredStocks.length === 0 ? (
+                  <div className="px-4 py-3 text-gray-400">未找到匹配的股票</div>
+                ) : (
+                  filteredStocks.map(stock => (
+                    <div
+                      key={stock.id}
+                      onClick={() => selectStock(stock)}
+                      className="px-4 py-3 hover:bg-white/10 cursor-pointer transition-colors"
+                    >
+                      <div className="font-medium">{stock.stock_code}</div>
+                      <div className="text-sm text-gray-400">{stock.stock_name}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+          
+          {/* 股票名称显示 */}
+          <div className="col-span-2 md:col-span-1">
+            <label className="block text-sm font-medium text-white mb-2">股票名称</label>
             <input
               type="text"
               placeholder="股票名称"
               value={newPosition.stock_name}
-              onChange={(e) => setNewPosition({...newPosition, stock_name: e.target.value})}
-              className="w-full px-4 py-3 rounded-lg border border-white/20 bg-white/10 backdrop-blur-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+              readOnly
+              className="w-full px-4 py-3 rounded-lg border border-white/20 bg-white/5 backdrop-blur-sm text-white placeholder-white/60"
             />
+          </div>
+          
+          {/* 持仓数量 */}
+          <div>
+            <label className="block text-sm font-medium text-white mb-2">持仓数量</label>
             <input
               type="number"
               placeholder="持仓数量"
               value={newPosition.quantity}
-              onChange={(e) => setNewPosition({...newPosition, quantity: parseInt(e.target.value) || 0})}
+              onChange={(e) => {
+                setNewPosition({...newPosition, quantity: parseInt(e.target.value) || 0})
+                updatePositionMetrics()
+              }}
               className="w-full px-4 py-3 rounded-lg border border-white/20 bg-white/10 backdrop-blur-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
             />
+          </div>
+          
+          {/* 平均成本 */}
+          <div>
+            <label className="block text-sm font-medium text-white mb-2">平均成本</label>
             <input
               type="number"
               placeholder="平均成本"
               value={newPosition.avg_cost}
-              onChange={(e) => setNewPosition({...newPosition, avg_cost: parseFloat(e.target.value) || 0})}
+              onChange={(e) => {
+                setNewPosition({...newPosition, avg_cost: parseFloat(e.target.value) || 0})
+                updatePositionMetrics()
+              }}
               className="w-full px-4 py-3 rounded-lg border border-white/20 bg-white/10 backdrop-blur-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
             />
-            <input
-              type="number"
-              placeholder="市值"
-              value={newPosition.market_value}
-              onChange={(e) => setNewPosition({...newPosition, market_value: parseFloat(e.target.value) || 0})}
-              className="w-full px-4 py-3 rounded-lg border border-white/20 bg-white/10 backdrop-blur-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
-            />
-            <input
-              type="number"
-              placeholder="盈亏金额"
-              value={newPosition.profit}
-              onChange={(e) => setNewPosition({...newPosition, profit: parseFloat(e.target.value) || 0})}
-              className="w-full px-4 py-3 rounded-lg border border-white/20 bg-white/10 backdrop-blur-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
-            />
-            <textarea
-              placeholder="备注信息"
-              value={newPosition.notes}
-              onChange={(e) => setNewPosition({...newPosition, notes: e.target.value})}
-              rows={3}
-              className="w-full px-4 py-3 rounded-lg border border-white/20 bg-white/10 backdrop-blur-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
-            />
+          </div>
+            {/* 市值 */}
+            <div>
+              <label className="block text-sm font-medium text-white mb-2">市值</label>
+              <input
+                type="number"
+                placeholder="市值"
+                value={isNaN(newPosition.market_value) ? '0' : newPosition.market_value.toFixed(2)}
+                readOnly
+                className="w-full px-4 py-3 rounded-lg border border-white/20 bg-white/5 backdrop-blur-sm text-white placeholder-white/60"
+              />
+            </div>
+            
+            {/* 盈亏金额 */}
+            <div>
+              <label className="block text-sm font-medium text-white mb-2">盈亏金额</label>
+              <input
+                type="number"
+                placeholder="盈亏金额"
+                value={isNaN(newPosition.profit) ? '0' : newPosition.profit.toFixed(2)}
+                readOnly
+                className="w-full px-4 py-3 rounded-lg border border-white/20 bg-white/5 backdrop-blur-sm text-white placeholder-white/60"
+              />
+            </div>
+            
+            {/* 备注信息 */}
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-white mb-2">备注信息</label>
+              <textarea
+                placeholder="备注信息"
+                value={newPosition.notes}
+                onChange={(e) => setNewPosition({...newPosition, notes: e.target.value})}
+                rows={3}
+                className="w-full px-4 py-3 rounded-lg border border-white/20 bg-white/10 backdrop-blur-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+              />
+            </div>
           </div>
           <div className="mt-4 flex justify-end">
             <button
