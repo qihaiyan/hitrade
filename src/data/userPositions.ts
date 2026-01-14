@@ -95,3 +95,20 @@ export async function deleteUserPosition(id: number): Promise<void> {
     stmt.run(id)
   })
 }
+
+// 根据用户ID和股票代码获取持仓
+export async function getUserPositionByUserAndSymbol(userId: number, symbol: string): Promise<UserPosition | null> {
+  await initializeDatabase()
+  return withDatabase((db) => {
+    return db.prepare('SELECT * FROM user_position WHERE user_id = ? AND symbol = ?').get(userId, symbol) as UserPosition | null
+  })
+}
+
+// 根据用户ID和股票代码删除持仓
+export async function deleteUserPositionBySymbol(userId: number, symbol: string): Promise<void> {
+  await initializeDatabase()
+  return withDatabase((db) => {
+    const stmt = db.prepare('DELETE FROM user_position WHERE user_id = ? AND symbol = ?')
+    stmt.run(userId, symbol)
+  })
+}

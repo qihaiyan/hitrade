@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
-import { getUserPositions, addUserPosition, updateUserPosition, deleteUserPosition } from '../../data/userPositions'
+import { getUserPositions, updateUserPosition, deleteUserPosition } from '../../data/userPositions'
+import { addBuyTransaction, getUserTransactionsByStock } from '../../data/stockTransaction'
 import { ensureDefaultUser } from '../../data/users'
 import { PositionTable } from '../../components/PositionTable'
 import { AddPositionModal } from '../../components/AddPositionModal'
@@ -20,11 +21,17 @@ const addPosition = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     // 确保有默认用户
     const defaultUser = await ensureDefaultUser()
-    // 添加持仓
-    return await addUserPosition({
-      ...data,
-      user_id: defaultUser.id
-    })
+    
+    // 转换为买入交易
+    await addBuyTransaction(
+      defaultUser.id,
+      data.symbol, // 使用symbol作为股票代码
+      data.avg_cost, // 使用avg_cost作为买入价格
+      data.quantity
+    )
+    
+    // 返回更新后的持仓列表
+    return await getUserPositions(defaultUser.id)
   })
 
 const updatePosition = createServerFn({ method: 'POST' })
@@ -42,6 +49,16 @@ const deletePosition = createServerFn({ method: 'POST' })
     // 返回更新后的持仓列表
     const defaultUser = await ensureDefaultUser()
     return await getUserPositions(defaultUser.id)
+  })
+
+// 获取交易记录
+const getTransactions = createServerFn({ method: 'GET' })
+  .inputValidator((d: string) => d)
+  .handler(async ({ data: stock_code }) => {
+    // 确保有默认用户
+    const defaultUser = await ensureDefaultUser()
+    // 获取交易记录
+    return await getUserTransactionsByStock(defaultUser.id, stock_code)
   })
 
 // 注释掉未使用的服务器函数
@@ -83,6 +100,11 @@ function Home() {
     })
   }, [updatePosition])
 
+  // 获取交易记录
+  const handleGetTransactions = useCallback(async (symbol: string) => {
+    return await getTransactions({ data: symbol })
+  }, [getTransactions])
+
   return (
     <div
       className="flex items-center justify-center min-h-screen bg-gradient-to-br from-zinc-800 to-black p-4 text-white"
@@ -109,6 +131,7 @@ function Home() {
             positions={positions} 
             onDelete={handleDelete}
             onUpdate={handleUpdate}
+            onGetTransactions={handleGetTransactions}
           />
         </div>
         

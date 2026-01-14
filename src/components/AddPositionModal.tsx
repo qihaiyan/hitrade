@@ -254,7 +254,7 @@ export function AddPositionModal({ isOpen, onClose, onAdd }: AddPositionModalPro
               disabled={!newPosition.symbol || !newPosition.stock_name}
               className="bg-green-500 hover:bg-green-600 disabled:bg-green-500/50 disabled:cursor-not-allowed text-white font-bold py-3 px-6 rounded-lg transition-colors"
             >
-              添加持仓
+              确定
             </button>
           </div>
         </div>
