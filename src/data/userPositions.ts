@@ -19,7 +19,7 @@ export interface UserPosition {
 export async function getUserPositions(userId: number): Promise<UserPosition[]> {
   await initializeDatabase()
   return withDatabase((db) => {
-    return db.prepare('SELECT * FROM user_positions WHERE user_id = ? ORDER BY id').all(userId) as UserPosition[]
+    return db.prepare('SELECT * FROM user_position WHERE user_id = ? ORDER BY id').all(userId) as UserPosition[]
   })
 }
 
@@ -38,7 +38,7 @@ export async function addUserPosition(position: {
   await initializeDatabase()
   return withDatabase((db) => {
     const stmt = db.prepare(`
-      INSERT INTO user_positions (
+      INSERT INTO user_position (
         user_id, stock_id, symbol, stock_name, quantity, avg_cost, market_value, profit, profit_percent, notes
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
@@ -54,7 +54,7 @@ export async function addUserPosition(position: {
       position.profit_percent,
       position.notes || null
     )
-    return db.prepare('SELECT * FROM user_positions WHERE user_id = ? ORDER BY id').all(position.user_id) as UserPosition[]
+    return db.prepare('SELECT * FROM user_position WHERE user_id = ? ORDER BY id').all(position.user_id) as UserPosition[]
   })
 }
 
@@ -79,7 +79,7 @@ export async function updateUserPosition(id: number, updates: Partial<{
       values.push(id)
       
       const stmt = db.prepare(`
-        UPDATE user_positions
+        UPDATE user_position
         SET ${updateFields}
         WHERE id = ?
       `)
@@ -91,7 +91,7 @@ export async function updateUserPosition(id: number, updates: Partial<{
 export async function deleteUserPosition(id: number): Promise<void> {
   await initializeDatabase()
   return withDatabase((db) => {
-    const stmt = db.prepare('DELETE FROM user_positions WHERE id = ?')
+    const stmt = db.prepare('DELETE FROM user_position WHERE id = ?')
     stmt.run(id)
   })
 }
