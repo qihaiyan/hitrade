@@ -231,17 +231,24 @@ export async function addBuyTransaction(
     }
   }
   
-  const transaction = await createTransaction({
-    transaction_id: transactionId || generateTransactionId(),
-    user_id: userId,
-    stock_code,
-    transaction_type: 'buy',
-    price,
-    quantity,
-    amount,
-    transaction_time: new Date().toISOString(),
-    status: 'completed'
-  })
+  // 创建交易记录
+  let transaction
+  try {
+    transaction = await createTransaction({
+      transaction_id: transactionId || generateTransactionId(),
+      user_id: userId,
+      stock_code,
+      transaction_type: 'buy',
+      price,
+      quantity,
+      amount,
+      transaction_time: new Date().toISOString(),
+      status: 'completed'
+    })
+  } catch (error) {
+    console.error('Failed to create transaction:', error)
+    throw new Error(`Failed to create buy transaction for stock ${stock_code}: ${error instanceof Error ? error.message : 'Unknown error'}`)
+  }
   
   // 更新持仓
   await updatePositionFromTransactions(userId, stock_code)

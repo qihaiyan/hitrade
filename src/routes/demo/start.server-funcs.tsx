@@ -4,6 +4,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { getUserPositions, updateUserPosition, deleteUserPosition } from '../../data/userPositions'
 import { addBuyTransaction, getUserTransactionsByStock } from '../../data/stockTransaction'
 import { ensureDefaultUser } from '../../data/users'
+import { getAllStockPrice } from '../../data/stockPrice'
 import { PositionTable } from '../../components/PositionTable'
 import { AddPositionModal } from '../../components/AddPositionModal'
 
@@ -61,6 +62,13 @@ const getTransactions = createServerFn({ method: 'GET' })
     return await getUserTransactionsByStock(defaultUser.id, stock_code)
   })
 
+// 获取所有股票数据
+const getAllStocks = createServerFn({ method: 'GET' })
+  .handler(async () => {
+    // 获取所有股票数据
+    return await getAllStockPrice()
+  })
+
 // 注释掉未使用的服务器函数
 /*
 const createUser = createServerFn({ method: 'POST' })
@@ -105,6 +113,11 @@ function Home() {
     return await getTransactions({ data: symbol })
   }, [getTransactions])
 
+  // 获取所有股票数据
+  const handleGetAllStocks = useCallback(async () => {
+    return await getAllStocks()
+  }, [getAllStocks])
+
   return (
     <div
       className="flex items-center justify-center min-h-screen bg-gradient-to-br from-zinc-800 to-black p-4 text-white"
@@ -140,6 +153,7 @@ function Home() {
           isOpen={showModal} 
           onClose={() => setShowModal(false)} 
           onAdd={handleAddPosition}
+          onGetAllStocks={handleGetAllStocks}
         />
       </div>
     </div>

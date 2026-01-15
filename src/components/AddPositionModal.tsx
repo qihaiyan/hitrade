@@ -1,6 +1,5 @@
 import { useCallback, useState, useEffect } from 'react'
 import { useRouter } from '@tanstack/react-router'
-import { getAllStockPrice } from '../data/stockPriceClient'
 import type { StockPrice } from '../data/stockPrice'
 
 export interface NewPosition {
@@ -8,7 +7,7 @@ export interface NewPosition {
   symbol: string
   stock_name: string
   quantity: number
-  avg_cost: number
+  buy_price: number
   market_value: number
   profit: number
   profit_percent: number
@@ -19,16 +18,17 @@ interface AddPositionModalProps {
   isOpen: boolean
   onClose: () => void
   onAdd: (position: NewPosition) => Promise<void>
+  onGetAllStocks: () => Promise<StockPrice[]>
 }
 
-export function AddPositionModal({ isOpen, onClose, onAdd }: AddPositionModalProps) {
+export function AddPositionModal({ isOpen, onClose, onAdd, onGetAllStocks }: AddPositionModalProps) {
   const router = useRouter()
   const [newPosition, setNewPosition] = useState<NewPosition>({
     stock_id: '',
     symbol: '',
     stock_name: '',
     quantity: 0,
-    avg_cost: 0,
+    buy_price: 0,
     market_value: 0,
     profit: 0,
     profit_percent: 0,
@@ -46,14 +46,14 @@ export function AddPositionModal({ isOpen, onClose, onAdd }: AddPositionModalPro
     
     setIsLoading(true)
     try {
-      const stockList = await getAllStockPrice()
+      const stockList = await onGetAllStocks()
       setStocks(stockList)
     } catch (error) {
       console.error('加载股票数据失败:', error)
     } finally {
       setIsLoading(false)
     }
-  }, [isOpen])
+  }, [isOpen, onGetAllStocks])
   
   // 当模态框打开时加载股票数据
   useEffect(() => {
@@ -76,20 +76,20 @@ export function AddPositionModal({ isOpen, onClose, onAdd }: AddPositionModalPro
       symbol: stock.stock_code,
       stock_name: stock.stock_name,
       market_value: stock.latest_price * prev.quantity,
-      profit: (stock.latest_price - prev.avg_cost) * prev.quantity,
-      profit_percent: prev.avg_cost > 0 ? ((stock.latest_price - prev.avg_cost) / prev.avg_cost) * 100 : 0
+      profit: (stock.latest_price - prev.buy_price) * prev.quantity,
+      profit_percent: prev.buy_price > 0 ? ((stock.latest_price - prev.buy_price) / prev.buy_price) * 100 : 0
     }))
     setIsDropdownOpen(false)
     setSearchTerm('')
   }, [])
   
-  // 当数量或平均成本变化时更新市值和盈亏
+  // 当数量或买入价格变化时更新市值和盈亏
   const updatePositionMetrics = useCallback(() => {
     setNewPosition(prev => {
       const selectedStock = stocks.find(stock => stock.stock_code === prev.symbol)
       const marketValue = selectedStock ? selectedStock.latest_price * prev.quantity : 0
-      const profit = selectedStock ? (selectedStock.latest_price - prev.avg_cost) * prev.quantity : 0
-      const profitPercent = prev.avg_cost > 0 ? ((marketValue / prev.quantity - prev.avg_cost) / prev.avg_cost) * 100 : 0
+      const profit = selectedStock ? (selectedStock.latest_price - prev.buy_price) * prev.quantity : 0
+      const profitPercent = prev.buy_price > 0 ? ((marketValue / prev.quantity - prev.buy_price) / prev.buy_price) * 100 : 0
       
       return {
         ...prev,
@@ -104,13 +104,19 @@ export function AddPositionModal({ isOpen, onClose, onAdd }: AddPositionModalPro
   const submitNewPosition = useCallback(async () => {
     if (!newPosition.symbol || !newPosition.stock_name) return
     
-    await onAdd(newPosition)
+    // 转换为兼容父组件的格式
+    const positionData = {
+      ...newPosition,
+      avg_cost: newPosition.buy_price // 保留avg_cost字段以兼容现有代码
+    }
+    
+    await onAdd(positionData)
     setNewPosition({
       stock_id: '',
       symbol: '',
       stock_name: '',
       quantity: 0,
-      avg_cost: 0,
+      buy_price: 0,
       market_value: 0,
       profit: 0,
       profit_percent: 0,
@@ -198,15 +204,15 @@ export function AddPositionModal({ isOpen, onClose, onAdd }: AddPositionModalPro
             />
           </div>
           
-          {/* 平均成本 */}
+          {/* 买入价格 */}
           <div>
-            <label className="block text-sm font-medium text-white mb-2">平均成本</label>
+            <label className="block text-sm font-medium text-white mb-2">买入价格</label>
             <input
               type="number"
-              placeholder="平均成本"
-              value={newPosition.avg_cost}
+              placeholder="买入价格"
+              value={newPosition.buy_price}
               onChange={(e) => {
-                setNewPosition({...newPosition, avg_cost: parseFloat(e.target.value) || 0})
+                setNewPosition({...newPosition, buy_price: parseFloat(e.target.value) || 0})
                 updatePositionMetrics()
               }}
               className="w-full px-4 py-3 rounded-lg border border-white/20 bg-white/10 backdrop-blur-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
