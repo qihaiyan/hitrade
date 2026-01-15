@@ -3,7 +3,7 @@ import { useRouter } from '@tanstack/react-router'
 
 export interface Position {
   id: number
-  symbol: string
+  stock_code: string
   stock_name: string
   quantity: number
   avg_cost: number
@@ -62,8 +62,8 @@ export function PositionTable({ positions, onDelete, onUpdate, onGetTransactions
       expandedRows.forEach(positionId => {
         const position = positions.find(pos => pos.id === positionId)
         if (position) {
-          onGetTransactions(position.symbol).then(data => {
-            setTransactions(prev => new Map(prev).set(position.symbol, data))
+          onGetTransactions(position.stock_code).then(data => {
+            setTransactions(prev => new Map(prev).set(position.stock_code, data))
           }).catch(error => {
             console.error('获取交易记录失败:', error)
           })
@@ -101,7 +101,7 @@ export function PositionTable({ positions, onDelete, onUpdate, onGetTransactions
   }, [])
 
   // 切换行展开状态
-  const toggleRowExpand = useCallback(async (positionId: number, symbol: string) => {
+  const toggleRowExpand = useCallback(async (positionId: number, stock_code: string) => {
     setExpandedRows(prev => {
       const newSet = new Set(prev)
       if (newSet.has(positionId)) {
@@ -110,7 +110,7 @@ export function PositionTable({ positions, onDelete, onUpdate, onGetTransactions
         newSet.add(positionId)
         // 每次展开都重新获取交易记录，确保显示最新数据
         if (onGetTransactions) {
-          fetchTransactions(symbol)
+          fetchTransactions(stock_code)
         }
       }
       return newSet
@@ -158,13 +158,13 @@ export function PositionTable({ positions, onDelete, onUpdate, onGetTransactions
                 <tr key={pos.id} className="hover:bg-white/5">
                   <td className="px-4 py-3 border-b border-white/10 cursor-pointer">
                     <button
-                      onClick={() => toggleRowExpand(pos.id, pos.symbol)}
+                      onClick={() => toggleRowExpand(pos.id, pos.stock_code)}
                       className="text-gray-400 hover:text-white transition-colors"
                     >
                       {expandedRows.has(pos.id) ? '▼' : '▶'}
                     </button>
                   </td>
-                  <td className="px-4 py-3 border-b border-white/10">{pos.symbol}</td>
+                  <td className="px-4 py-3 border-b border-white/10">{pos.stock_code}</td>
                   <td className="px-4 py-3 border-b border-white/10">{pos.stock_name}</td>{editingId === pos.id ? (
                   <>
                     <td className="px-4 py-3 border-b border-white/10">
@@ -256,20 +256,20 @@ export function PositionTable({ positions, onDelete, onUpdate, onGetTransactions
                             <th className="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">时间</th>
                             <th className="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">状态</th>
                           </tr></thead>
-                        <tbody>{loadingTransactions.has(pos.symbol) ? (
+                        <tbody>{loadingTransactions.has(pos.stock_code) ? (
                             <tr>
                               <td colSpan={7} className="px-4 py-4 text-center text-gray-400">
                                 加载中...
                               </td>
                             </tr>
-                          ) : !transactions.has(pos.symbol) || transactions.get(pos.symbol)?.length === 0 ? (
+                          ) : !transactions.has(pos.stock_code) || transactions.get(pos.stock_code)?.length === 0 ? (
                             <tr>
                               <td colSpan={7} className="px-4 py-4 text-center text-gray-400">
                                 暂无交易记录
                               </td>
                             </tr>
                           ) : (
-                            transactions.get(pos.symbol)?.map(transaction => (
+                            transactions.get(pos.stock_code)?.map(transaction => (
                               <tr key={transaction.id} className="border-b border-white/5 hover:bg-white/5">
                                 <td className="px-4 py-2 text-sm">{transaction.transaction_id}</td>
                                 <td className={`px-4 py-2 text-sm font-medium ${transaction.transaction_type === 'buy' ? 'text-green-400' : 'text-red-400'}`}>

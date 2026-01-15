@@ -2,11 +2,10 @@ import { useCallback, useState, useEffect } from 'react'
 import type { StockPrice } from '../data/stockPrice'
 
 export interface NewPosition {
-  stock_id: string
-  symbol: string
+  stock_code: string
   stock_name: string
-  buy_quantity: number
-  buy_price: number
+  quantity: number
+  price: number
   market_value: number
   profit: number
   profit_percent: number
@@ -22,11 +21,10 @@ interface AddPositionModalProps {
 
 export function AddPositionModal({ isOpen, onClose, onAdd, onGetAllStocks }: AddPositionModalProps) {
   const [newPosition, setNewPosition] = useState<NewPosition>({
-    stock_id: '',
-    symbol: '',
+    stock_code: '',
     stock_name: '',
-    buy_quantity: 0,
-    buy_price: 0,
+    quantity: 0,
+    price: 0,
     market_value: 0,
     profit: 0,
     profit_percent: 0,
@@ -73,12 +71,11 @@ export function AddPositionModal({ isOpen, onClose, onAdd, onGetAllStocks }: Add
     
     setNewPosition(prev => ({
       ...prev,
-      stock_id: stock.stock_code,
-      symbol: stock.stock_code,
+      stock_code: stock.stock_code,
       stock_name: stock.stock_name,
-      buy_price: latestPrice, // 自动填写最新价作为买入价格
-      market_value: latestPrice * prev.buy_quantity,
-      profit: (latestPrice - latestPrice) * prev.buy_quantity, // 盈亏为0，因为买入价格等于最新价
+      price: latestPrice, // 自动填写最新价作为买入价格
+      market_value: latestPrice * prev.quantity,
+      profit: (latestPrice - latestPrice) * prev.quantity, // 盈亏为0，因为买入价格等于最新价
       profit_percent: 0 // 盈亏百分比为0
     }))
     
@@ -92,10 +89,10 @@ export function AddPositionModal({ isOpen, onClose, onAdd, onGetAllStocks }: Add
   // 当数量或买入价格变化时更新市值和盈亏
   const updatePositionMetrics = useCallback(() => {
     setNewPosition(prev => {
-      const selectedStock = stocks.find(stock => stock.stock_code === prev.symbol)
-      const marketValue = selectedStock ? selectedStock.latest_price * prev.buy_quantity : 0
-      const profit = selectedStock ? (selectedStock.latest_price - prev.buy_price) * prev.buy_quantity : 0
-      const profitPercent = prev.buy_price > 0 ? ((marketValue / prev.buy_quantity - prev.buy_price) / prev.buy_price) * 100 : 0
+      const selectedStock = stocks.find(stock => stock.stock_code === prev.stock_code)
+      const marketValue = selectedStock ? selectedStock.latest_price * prev.quantity : 0
+      const profit = selectedStock ? (selectedStock.latest_price - prev.price) * prev.quantity : 0
+      const profitPercent = prev.price > 0 ? ((marketValue / prev.quantity - prev.price) / prev.price) * 100 : 0
       
       return {
         ...prev,
@@ -108,26 +105,14 @@ export function AddPositionModal({ isOpen, onClose, onAdd, onGetAllStocks }: Add
 
   // 提交新增持仓
   const submitNewPosition = useCallback(async () => {
-    if (!newPosition.symbol || !newPosition.stock_name || newPosition.buy_quantity <= 0) return
+    if (!newPosition.stock_code || !newPosition.stock_name || newPosition.quantity <= 0) return
     
-    // 转换为兼容父组件的格式
-    const positionData = {
-      ...newPosition,
-      price: newPosition.buy_price, // 服务器函数期望的是price字段
-      avg_cost: newPosition.buy_price, // 保留avg_cost字段以兼容现有代码
-      quantity: newPosition.buy_quantity // 将buy_quantity转换为quantity，因为服务器函数期望的是quantity字段
-    }
-    
-    // 添加调试信息
-    console.log('Submitting position data:', positionData)
-    
-    await onAdd(positionData)
+    await onAdd(newPosition)
     setNewPosition({
-      stock_id: '',
-      symbol: '',
+      stock_code: '',
       stock_name: '',
-      buy_quantity: 0,
-      buy_price: 0,
+      quantity: 0,
+      price: 0,
       market_value: 0,
       profit: 0,
       profit_percent: 0,
@@ -158,7 +143,7 @@ export function AddPositionModal({ isOpen, onClose, onAdd, onGetAllStocks }: Add
             <input
               type="text"
               placeholder="搜索股票代码或名称"
-              value={searchTerm || newPosition.symbol}
+              value={searchTerm || newPosition.stock_code}
               onChange={(e) => setSearchTerm(e.target.value)}
               onFocus={() => setIsDropdownOpen(true)}
               className="w-full px-4 py-3 rounded-lg border border-white/20 bg-white/10 backdrop-blur-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
@@ -226,10 +211,10 @@ export function AddPositionModal({ isOpen, onClose, onAdd, onGetAllStocks }: Add
             <input
               type="number"
               placeholder="买入数量"
-              value={newPosition.buy_quantity}
+              value={newPosition.quantity}
               onChange={(e) => {
                 const value = parseInt(e.target.value) || 0
-                setNewPosition({...newPosition, buy_quantity: value > 0 ? value : 0})
+                setNewPosition({...newPosition, quantity: value > 0 ? value : 0})
                 updatePositionMetrics()
               }}
               min="1"
@@ -244,11 +229,11 @@ export function AddPositionModal({ isOpen, onClose, onAdd, onGetAllStocks }: Add
             <input
               type="number"
               placeholder="买入价格"
-              value={newPosition.buy_price}
+              value={newPosition.price}
               onChange={(e) => {
                 const price = parseFloat(e.target.value) || 0
                 const formattedPrice = Math.round(price * 100) / 100 // 四舍五入到两位小数
-                setNewPosition({...newPosition, buy_price: formattedPrice})
+                setNewPosition({...newPosition, price: formattedPrice})
                 updatePositionMetrics()
               }}
               className="w-full px-4 py-3 rounded-lg border border-white/20 bg-white/10 backdrop-blur-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
@@ -293,7 +278,7 @@ export function AddPositionModal({ isOpen, onClose, onAdd, onGetAllStocks }: Add
           <div className="mt-4 flex justify-end">
             <button
               onClick={submitNewPosition}
-              disabled={!newPosition.symbol || !newPosition.stock_name}
+              disabled={!newPosition.stock_code || !newPosition.stock_name}
               className="bg-green-500 hover:bg-green-600 disabled:bg-green-500/50 disabled:cursor-not-allowed text-white font-bold py-3 px-6 rounded-lg transition-colors"
             >
               确定

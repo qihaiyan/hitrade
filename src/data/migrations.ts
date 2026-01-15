@@ -16,8 +16,7 @@ export async function initializeDatabase() {
       CREATE TABLE IF NOT EXISTS user_position (
         id INTEGER PRIMARY KEY AUTOINCREMENT, -- 主键ID
         user_id INTEGER NOT NULL, -- 用户ID
-        stock_id TEXT NOT NULL, -- 股票ID
-        symbol TEXT NOT NULL, -- 股票代码
+        stock_code TEXT NOT NULL, -- 股票代码
         stock_name TEXT NOT NULL, -- 股票名称
         quantity INTEGER NOT NULL, -- 持仓数量
         avg_cost REAL NOT NULL, -- 平均成本

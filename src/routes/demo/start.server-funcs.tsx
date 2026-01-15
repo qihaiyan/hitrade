@@ -21,7 +21,7 @@ const addPosition = createServerFn({ method: 'POST' })
   .inputValidator((d: any) => {
     // 验证必要字段
     console.log('Input validator received data:', d)
-    if (!d.symbol) throw new Error('Symbol is required')
+    if (!d.stock_code) throw new Error('Stock code is required')
     if (!d.price || d.price <= 0) throw new Error('Price must be greater than 0')
     if (!d.quantity || d.quantity <= 0) throw new Error('Quantity must be greater than 0')
     return d
@@ -33,7 +33,7 @@ const addPosition = createServerFn({ method: 'POST' })
     // 转换为买入交易
     await addBuyTransaction(
       defaultUser.id,
-      data.symbol, // 使用symbol作为股票代码
+      data.stock_code, // 使用stock_code作为股票代码
       data.price, // 使用price作为买入价格
       data.quantity
     )
@@ -61,7 +61,7 @@ const deletePosition = createServerFn({ method: 'POST' })
     // 如果持仓存在，同时删除相关交易记录
     if (position) {
       const defaultUser = await ensureDefaultUser()
-      await deleteUserTransactionsByStock(defaultUser.id, position.symbol)
+      await deleteUserTransactionsByStock(defaultUser.id, position.stock_code)
     }
     
     // 返回更新后的持仓列表
@@ -144,7 +144,7 @@ function Home() {
           'radial-gradient(50% 50% at 20% 60%, #23272a 0%, #18181b 50%, #000000 100%)',
       }}
     >
-      <div className="w-full max-w-4xl p-8 rounded-xl backdrop-blur-md bg-black/50 shadow-xl border-8 border-black/10">
+      <div className="w-full max-w-7xl p-8 rounded-xl backdrop-blur-md bg-black/50 shadow-xl border-8 border-black/10">
         <h1 className="text-2xl mb-6">用户持仓管理</h1>
         
         {/* 持仓列表 */}

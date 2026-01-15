@@ -175,8 +175,7 @@ export async function updatePositionFromTransactions(userId: number, stock_code:
     // 创建新的持仓记录
     await addUserPosition({
       user_id: userId,
-      stock_id: stock_code,
-      symbol: stock_code,
+      stock_code: stock_code,
       stock_name: stock.stock_name,
       quantity: position.quantity,
       avg_cost: position.avg_cost,

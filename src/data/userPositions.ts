@@ -4,8 +4,7 @@ import { initializeDatabase } from './migrations'
 export interface UserPosition {
   id: number
   user_id: number
-  stock_id: string
-  symbol: string
+  stock_code: string
   stock_name: string
   quantity: number
   avg_cost: number
@@ -25,8 +24,7 @@ export async function getUserPositions(userId: number): Promise<UserPosition[]> 
 
 export async function addUserPosition(position: {
   user_id: number
-  stock_id: string
-  symbol: string
+  stock_code: string
   stock_name: string
   quantity: number
   avg_cost: number
@@ -39,13 +37,12 @@ export async function addUserPosition(position: {
   return withDatabase((db) => {
     const stmt = db.prepare(`
       INSERT INTO user_position (
-        user_id, stock_id, symbol, stock_name, quantity, avg_cost, market_value, profit, profit_percent, notes
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        user_id, stock_code, stock_name, quantity, avg_cost, market_value, profit, profit_percent, notes
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
     stmt.run(
       position.user_id,
-      position.stock_id,
-      position.symbol,
+      position.stock_code,
       position.stock_name,
       position.quantity,
       position.avg_cost,
@@ -97,19 +94,19 @@ export async function deleteUserPosition(id: number): Promise<void> {
 }
 
 // 根据用户ID和股票代码获取持仓
-export async function getUserPositionByUserAndSymbol(userId: number, symbol: string): Promise<UserPosition | null> {
+export async function getUserPositionByUserAndSymbol(userId: number, stock_code: string): Promise<UserPosition | null> {
   await initializeDatabase()
   return withDatabase((db) => {
-    return db.prepare('SELECT * FROM user_position WHERE user_id = ? AND symbol = ?').get(userId, symbol) as UserPosition | null
+    return db.prepare('SELECT * FROM user_position WHERE user_id = ? AND stock_code = ?').get(userId, stock_code) as UserPosition | null
   })
 }
 
 // 根据用户ID和股票代码删除持仓
-export async function deleteUserPositionBySymbol(userId: number, symbol: string): Promise<void> {
+export async function deleteUserPositionBySymbol(userId: number, stock_code: string): Promise<void> {
   await initializeDatabase()
   return withDatabase((db) => {
-    const stmt = db.prepare('DELETE FROM user_position WHERE user_id = ? AND symbol = ?')
-    stmt.run(userId, symbol)
+    const stmt = db.prepare('DELETE FROM user_position WHERE user_id = ? AND stock_code = ?')
+    stmt.run(userId, stock_code)
   })
 }
 
