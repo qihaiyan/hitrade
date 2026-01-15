@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
-import { getUserPositions, updateUserPosition, deleteUserPosition } from '../../data/userPositions'
-import { addBuyTransaction, getUserTransactionsByStock } from '../../data/stockTransaction'
+import { getUserPositions, updateUserPosition, deleteUserPosition, getUserPositionById } from '../../data/userPositions'
+import { addBuyTransaction, getUserTransactionsByStock, deleteUserTransactionsByStock } from '../../data/stockTransaction'
 import { ensureDefaultUser } from '../../data/users'
 import { getAllStockPrice } from '../../data/stockPrice'
 import { PositionTable } from '../../components/PositionTable'
@@ -18,7 +18,14 @@ const getPositions = createServerFn({ method: 'GET' })
   })
 
 const addPosition = createServerFn({ method: 'POST' })
-  .inputValidator((d: any) => d)
+  .inputValidator((d: any) => {
+    // 验证必要字段
+    console.log('Input validator received data:', d)
+    if (!d.symbol) throw new Error('Symbol is required')
+    if (!d.price || d.price <= 0) throw new Error('Price must be greater than 0')
+    if (!d.quantity || d.quantity <= 0) throw new Error('Quantity must be greater than 0')
+    return d
+  })
   .handler(async ({ data }) => {
     // 确保有默认用户
     const defaultUser = await ensureDefaultUser()
@@ -27,7 +34,7 @@ const addPosition = createServerFn({ method: 'POST' })
     await addBuyTransaction(
       defaultUser.id,
       data.symbol, // 使用symbol作为股票代码
-      data.avg_cost, // 使用avg_cost作为买入价格
+      data.price, // 使用price作为买入价格
       data.quantity
     )
     
@@ -45,8 +52,18 @@ const updatePosition = createServerFn({ method: 'POST' })
 const deletePosition = createServerFn({ method: 'POST' })
   .inputValidator((d: number) => d)
   .handler(async ({ data }) => {
+    // 获取要删除的持仓信息
+    const position = await getUserPositionById(data)
+    
     // 删除持仓
     await deleteUserPosition(data)
+    
+    // 如果持仓存在，同时删除相关交易记录
+    if (position) {
+      const defaultUser = await ensureDefaultUser()
+      await deleteUserTransactionsByStock(defaultUser.id, position.symbol)
+    }
+    
     // 返回更新后的持仓列表
     const defaultUser = await ensureDefaultUser()
     return await getUserPositions(defaultUser.id)

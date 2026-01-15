@@ -112,3 +112,11 @@ export async function deleteUserPositionBySymbol(userId: number, symbol: string)
     stmt.run(userId, symbol)
   })
 }
+
+// 根据持仓ID获取持仓信息
+export async function getUserPositionById(id: number): Promise<UserPosition | null> {
+  await initializeDatabase()
+  return withDatabase((db) => {
+    return db.prepare('SELECT * FROM user_position WHERE id = ?').get(id) as UserPosition | null
+  })
+}

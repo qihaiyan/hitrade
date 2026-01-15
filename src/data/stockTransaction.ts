@@ -195,6 +195,10 @@ export async function addBuyTransaction(
   quantity: number,
   transactionId?: string
 ): Promise<StockTransaction> {
+  // 验证必要参数
+  if (!quantity || quantity <= 0) throw new Error('Quantity must be greater than 0')
+  if (!price || price <= 0) throw new Error('Price must be greater than 0')
+  
   const amount = price * quantity
   let stock = await getStockPriceByCode(stock_code)
   
@@ -234,13 +238,19 @@ export async function addBuyTransaction(
   // 创建交易记录
   let transaction
   try {
+    // 确保quantity是一个有效的数字
+    const validQuantity = Number(quantity)
+    if (isNaN(validQuantity) || validQuantity <= 0) {
+      throw new Error(`Invalid quantity: ${quantity}`)
+    }
+    
     transaction = await createTransaction({
       transaction_id: transactionId || generateTransactionId(),
       user_id: userId,
       stock_code,
       transaction_type: 'buy',
       price,
-      quantity,
+      quantity: validQuantity,
       amount,
       transaction_time: new Date().toISOString(),
       status: 'completed'
@@ -321,6 +331,15 @@ export async function addSellTransaction(
 // 生成交易ID
 function generateTransactionId(): string {
   return `TXN${Date.now()}${Math.floor(Math.random() * 1000)}`
+}
+
+// 根据用户ID和股票代码删除所有相关交易记录
+export async function deleteUserTransactionsByStock(userId: number, stock_code: string): Promise<void> {
+  await initializeDatabase()
+  return withDatabase((db) => {
+    const stmt = db.prepare('DELETE FROM stock_transaction WHERE user_id = ? AND stock_code = ?')
+    stmt.run(userId, stock_code)
+  })
 }
 
 // 函数结束

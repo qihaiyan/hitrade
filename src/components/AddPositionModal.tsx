@@ -6,7 +6,7 @@ export interface NewPosition {
   stock_id: string
   symbol: string
   stock_name: string
-  quantity: number
+  buy_quantity: number
   buy_price: number
   market_value: number
   profit: number
@@ -27,7 +27,7 @@ export function AddPositionModal({ isOpen, onClose, onAdd, onGetAllStocks }: Add
     stock_id: '',
     symbol: '',
     stock_name: '',
-    quantity: 0,
+    buy_quantity: 0,
     buy_price: 0,
     market_value: 0,
     profit: 0,
@@ -39,6 +39,7 @@ export function AddPositionModal({ isOpen, onClose, onAdd, onGetAllStocks }: Add
   const [isLoading, setIsLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [selectedStock, setSelectedStock] = useState<StockPrice | null>(null)
   
   // 加载股票数据
   const loadStocks = useCallback(async () => {
@@ -70,15 +71,22 @@ export function AddPositionModal({ isOpen, onClose, onAdd, onGetAllStocks }: Add
   
   // 选择股票
   const selectStock = useCallback((stock: StockPrice) => {
+    const latestPrice = Math.round(stock.latest_price * 100) / 100 // 四舍五入到两位小数
+    
     setNewPosition(prev => ({
       ...prev,
       stock_id: stock.stock_code,
       symbol: stock.stock_code,
       stock_name: stock.stock_name,
-      market_value: stock.latest_price * prev.quantity,
-      profit: (stock.latest_price - prev.buy_price) * prev.quantity,
-      profit_percent: prev.buy_price > 0 ? ((stock.latest_price - prev.buy_price) / prev.buy_price) * 100 : 0
+      buy_price: latestPrice, // 自动填写最新价作为买入价格
+      market_value: latestPrice * prev.buy_quantity,
+      profit: (latestPrice - latestPrice) * prev.buy_quantity, // 盈亏为0，因为买入价格等于最新价
+      profit_percent: 0 // 盈亏百分比为0
     }))
+    
+    // 存储当前选择的股票信息
+    setSelectedStock(stock)
+    
     setIsDropdownOpen(false)
     setSearchTerm('')
   }, [])
@@ -87,9 +95,9 @@ export function AddPositionModal({ isOpen, onClose, onAdd, onGetAllStocks }: Add
   const updatePositionMetrics = useCallback(() => {
     setNewPosition(prev => {
       const selectedStock = stocks.find(stock => stock.stock_code === prev.symbol)
-      const marketValue = selectedStock ? selectedStock.latest_price * prev.quantity : 0
-      const profit = selectedStock ? (selectedStock.latest_price - prev.buy_price) * prev.quantity : 0
-      const profitPercent = prev.buy_price > 0 ? ((marketValue / prev.quantity - prev.buy_price) / prev.buy_price) * 100 : 0
+      const marketValue = selectedStock ? selectedStock.latest_price * prev.buy_quantity : 0
+      const profit = selectedStock ? (selectedStock.latest_price - prev.buy_price) * prev.buy_quantity : 0
+      const profitPercent = prev.buy_price > 0 ? ((marketValue / prev.buy_quantity - prev.buy_price) / prev.buy_price) * 100 : 0
       
       return {
         ...prev,
@@ -102,20 +110,24 @@ export function AddPositionModal({ isOpen, onClose, onAdd, onGetAllStocks }: Add
 
   // 提交新增持仓
   const submitNewPosition = useCallback(async () => {
-    if (!newPosition.symbol || !newPosition.stock_name) return
+    if (!newPosition.symbol || !newPosition.stock_name || newPosition.buy_quantity <= 0) return
     
     // 转换为兼容父组件的格式
     const positionData = {
       ...newPosition,
-      avg_cost: newPosition.buy_price // 保留avg_cost字段以兼容现有代码
+      price: newPosition.buy_price,
+      quantity: newPosition.buy_quantity // 将buy_quantity转换为quantity，因为服务器函数期望的是quantity字段
     }
+    
+    // 添加调试信息
+    console.log('Submitting position data:', positionData)
     
     await onAdd(positionData)
     setNewPosition({
       stock_id: '',
       symbol: '',
       stock_name: '',
-      quantity: 0,
+      buy_quantity: 0,
       buy_price: 0,
       market_value: 0,
       profit: 0,
@@ -177,6 +189,27 @@ export function AddPositionModal({ isOpen, onClose, onAdd, onGetAllStocks }: Add
             )}
           </div>
           
+          {/* 股票价格信息 */}
+          {selectedStock && (
+            <div className="col-span-2 md:col-span-1 grid grid-cols-3 gap-2">
+              {/* 最新价 */}
+              <div className="bg-white/5 rounded-lg p-3">
+                <div className="text-xs text-gray-400 mb-1">最新价</div>
+                <div className="text-lg font-medium text-white">{selectedStock.latest_price.toFixed(2)}</div>
+              </div>
+              {/* 涨停价 */}
+              <div className="bg-white/5 rounded-lg p-3">
+                <div className="text-xs text-gray-400 mb-1">涨停价</div>
+                <div className="text-lg font-medium text-red-500">{Math.round(selectedStock.pre_close * 1.1 * 100) / 100}</div>
+              </div>
+              {/* 跌停价 */}
+              <div className="bg-white/5 rounded-lg p-3">
+                <div className="text-xs text-gray-400 mb-1">跌停价</div>
+                <div className="text-lg font-medium text-green-500">{Math.round(selectedStock.pre_close * 0.9 * 100) / 100}</div>
+              </div>
+            </div>
+          )}
+          
           {/* 股票名称显示 */}
           <div className="col-span-2 md:col-span-1">
             <label className="block text-sm font-medium text-white mb-2">股票名称</label>
@@ -191,15 +224,18 @@ export function AddPositionModal({ isOpen, onClose, onAdd, onGetAllStocks }: Add
           
           {/* 持仓数量 */}
           <div>
-            <label className="block text-sm font-medium text-white mb-2">持仓数量</label>
+            <label className="block text-sm font-medium text-white mb-2">买入数量</label>
             <input
               type="number"
-              placeholder="持仓数量"
-              value={newPosition.quantity}
+              placeholder="买入数量"
+              value={newPosition.buy_quantity}
               onChange={(e) => {
-                setNewPosition({...newPosition, quantity: parseInt(e.target.value) || 0})
+                const value = parseInt(e.target.value) || 0
+                setNewPosition({...newPosition, buy_quantity: value > 0 ? value : 0})
                 updatePositionMetrics()
               }}
+              min="1"
+              step="1"
               className="w-full px-4 py-3 rounded-lg border border-white/20 bg-white/10 backdrop-blur-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
             />
           </div>
@@ -212,7 +248,9 @@ export function AddPositionModal({ isOpen, onClose, onAdd, onGetAllStocks }: Add
               placeholder="买入价格"
               value={newPosition.buy_price}
               onChange={(e) => {
-                setNewPosition({...newPosition, buy_price: parseFloat(e.target.value) || 0})
+                const price = parseFloat(e.target.value) || 0
+                const formattedPrice = Math.round(price * 100) / 100 // 四舍五入到两位小数
+                setNewPosition({...newPosition, buy_price: formattedPrice})
                 updatePositionMetrics()
               }}
               className="w-full px-4 py-3 rounded-lg border border-white/20 bg-white/10 backdrop-blur-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
