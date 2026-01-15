@@ -1,5 +1,4 @@
 import { useCallback, useState, useEffect } from 'react'
-import { useRouter } from '@tanstack/react-router'
 import type { StockPrice } from '../data/stockPrice'
 
 export interface NewPosition {
@@ -22,7 +21,6 @@ interface AddPositionModalProps {
 }
 
 export function AddPositionModal({ isOpen, onClose, onAdd, onGetAllStocks }: AddPositionModalProps) {
-  const router = useRouter()
   const [newPosition, setNewPosition] = useState<NewPosition>({
     stock_id: '',
     symbol: '',
@@ -115,7 +113,8 @@ export function AddPositionModal({ isOpen, onClose, onAdd, onGetAllStocks }: Add
     // 转换为兼容父组件的格式
     const positionData = {
       ...newPosition,
-      price: newPosition.buy_price,
+      price: newPosition.buy_price, // 服务器函数期望的是price字段
+      avg_cost: newPosition.buy_price, // 保留avg_cost字段以兼容现有代码
       quantity: newPosition.buy_quantity // 将buy_quantity转换为quantity，因为服务器函数期望的是quantity字段
     }
     
@@ -135,7 +134,6 @@ export function AddPositionModal({ isOpen, onClose, onAdd, onGetAllStocks }: Add
       notes: ''
     })
     onClose()
-    router.invalidate()
   }, [newPosition, onAdd, onClose])
 
   if (!isOpen) return null

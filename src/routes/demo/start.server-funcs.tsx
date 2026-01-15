@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { getUserPositions, updateUserPosition, deleteUserPosition, getUserPositionById } from '../../data/userPositions'
 import { addBuyTransaction, getUserTransactionsByStock, deleteUserTransactionsByStock } from '../../data/stockTransaction'
@@ -101,14 +101,15 @@ export const Route = createFileRoute('/demo/start/server-funcs')({
 })
 
 function Home() {
-  // router not used yet - will be used for navigation in future
+  const router = useRouter()
   let positions = Route.useLoaderData() as any[]
   const [showModal, setShowModal] = useState(false)
 
   // 提交新增持仓
   const handleAddPosition = useCallback(async (position: any) => {
     await addPosition({ data: position })
-  }, [addPosition])
+    router.invalidate()
+  }, [addPosition, router])
 
   // 删除持仓
   const handleDelete = useCallback(async (id: number) => {

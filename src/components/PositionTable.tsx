@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useState, useEffect, useRef } from 'react'
 import { useRouter } from '@tanstack/react-router'
 
 export interface Position {
@@ -41,8 +41,36 @@ export function PositionTable({ positions, onDelete, onUpdate, onGetTransactions
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
   const [transactions, setTransactions] = useState<Map<string, StockTransaction[]>>(new Map())
   const [loadingTransactions, setLoadingTransactions] = useState<Set<string>>(new Set())
+  const [refreshTrigger, setRefreshTrigger] = useState<number>(0)
+  const prevPositionsLengthRef = useRef<number>(0)
 
-  // 删除持仓
+  // 当 positions 长度变化时，触发刷新
+  useEffect(() => {
+    const prevLength = prevPositionsLengthRef.current
+    const currentLength = positions.length
+    prevPositionsLengthRef.current = currentLength
+
+    // 只有当持仓数量变化时才触发刷新
+    if (prevLength !== currentLength) {
+      setRefreshTrigger(prev => prev + 1)
+    }
+  }, [positions])
+
+  // 当 refreshTrigger 变化时，刷新展开持仓的交易记录
+  useEffect(() => {
+    if (refreshTrigger > 0 && expandedRows.size > 0 && onGetTransactions) {
+      expandedRows.forEach(positionId => {
+        const position = positions.find(pos => pos.id === positionId)
+        if (position) {
+          onGetTransactions(position.symbol).then(data => {
+            setTransactions(prev => new Map(prev).set(position.symbol, data))
+          }).catch(error => {
+            console.error('获取交易记录失败:', error)
+          })
+        }
+      })
+    }
+  }, [refreshTrigger, positions, onGetTransactions])
   const handleDelete = useCallback(async (id: number) => {
     await onDelete(id)
     router.invalidate()
@@ -80,14 +108,14 @@ export function PositionTable({ positions, onDelete, onUpdate, onGetTransactions
         newSet.delete(positionId)
       } else {
         newSet.add(positionId)
-        // 如果有获取交易记录的函数，且还没有该股票的交易记录，则获取
-        if (onGetTransactions && !transactions.has(symbol) && !loadingTransactions.has(symbol)) {
+        // 每次展开都重新获取交易记录，确保显示最新数据
+        if (onGetTransactions) {
           fetchTransactions(symbol)
         }
       }
       return newSet
     })
-  }, [onGetTransactions, transactions, loadingTransactions])
+  }, [onGetTransactions])
 
   // 获取交易记录
   const fetchTransactions = useCallback(async (symbol: string) => {
