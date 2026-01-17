@@ -300,5 +300,94 @@ export async function initializeDatabase() {
         )
       })
     }
+    
+    // 如果stock_kline表没有数据，为每个股票生成历史K线数据
+    const klineCount = (db.prepare('SELECT COUNT(*) as count FROM stock_kline').get() as { count: number }).count
+    if (klineCount === 0) {
+      // 获取所有股票代码
+      const stockCodes = db.prepare('SELECT DISTINCT stock_code, latest_price, stock_name FROM stock_price').all()
+      
+      // 生成K线数据的函数
+      const generateKlineData = (stockCode: string, stockName: string, basePrice: number) => {
+        const klineData = []
+        const today = new Date()
+        
+        // 生成最近365天的日线数据
+        for (let i = 365; i >= 0; i--) {
+          const date = new Date()
+          date.setDate(today.getDate() - i)
+          date.setHours(0, 0, 0, 0)
+          
+          // 格式化日期为YYYY-MM-DD
+          const dateStr = date.toISOString().split('T')[0]
+          
+          // 生成价格数据
+          const dailyChange = (Math.random() - 0.5) * 0.1 // 每天价格变化范围：-5% 到 +5%
+          const close = basePrice * (1 + dailyChange)
+          const open = close * (0.98 + Math.random() * 0.04) // 开盘价在收盘价的98%-102%之间
+          const high = Math.max(open, close) * (1 + Math.random() * 0.03) // 最高价在开盘价和收盘价的最大值上浮动0-3%
+          const low = Math.min(open, close) * (0.97 + Math.random() * 0.03) // 最低价在开盘价和收盘价的最小值下浮动0-3%
+          
+          // 更新基准价格
+          basePrice = close
+          
+          // 生成成交量和成交额
+          const volume = Math.floor(500000 + Math.random() * 19500000) // 成交量在50万-2000万之间
+          const amount = close * volume
+          
+          // 添加K线数据
+          klineData.push({
+            stockCode,
+            stockName,
+            date: dateStr,
+            open: parseFloat(open.toFixed(2)),
+            high: parseFloat(high.toFixed(2)),
+            low: parseFloat(low.toFixed(2)),
+            close: parseFloat(close.toFixed(2)),
+            volume,
+            amount: parseFloat(amount.toFixed(2))
+          })
+        }
+        
+        return klineData
+      }
+      
+      // 插入K线数据
+      const klineStmt = db.prepare(`
+        INSERT INTO stock_kline (
+          stock_code, date, open, high, low, close, volume, amount, adj_factor, kline_type
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+      
+      // 为每个股票生成并插入K线数据
+      stockCodes.forEach((stock: any) => {
+        const klineData = generateKlineData(stock.stock_code, stock.stock_name, stock.latest_price)
+        
+        // 开始事务
+        db.exec('BEGIN TRANSACTION')
+        try {
+          klineData.forEach(data => {
+            klineStmt.run(
+              data.stockCode,
+              data.date,
+              data.open,
+              data.high,
+              data.low,
+              data.close,
+              data.volume,
+              data.amount,
+              1.0, // 复权因子
+              'day' // K线类型：日线
+            )
+          })
+          // 提交事务
+          db.exec('COMMIT')
+        } catch (error) {
+          // 回滚事务
+          db.exec('ROLLBACK')
+          console.error('Failed to insert K-line data for', stock.stock_code, ':', error)
+        }
+      })
+    }
   })
 }

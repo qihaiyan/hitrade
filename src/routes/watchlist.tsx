@@ -64,8 +64,6 @@ export const updateWatchlistRemark = createServerFn({ method: 'POST' })
     return await watchlistService.updateWatchlistRemark(defaultUser.id, data.stockCode, data.remark)
   })
 
-// 模拟当前用户ID，实际项目中应从认证系统获取
-const CURRENT_USER_ID = 1
 
 function WatchlistPage() {
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([])
