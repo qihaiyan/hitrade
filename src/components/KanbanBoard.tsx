@@ -37,9 +37,9 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit, onDelete, onExecuteWi
   };
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+    <div className="w-full min-w-[180px] sm:min-w-[200px] bg-gray-800 rounded-lg border border-gray-700 p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
       <div className="flex items-start justify-between mb-2">
-        <h3 className="font-medium text-gray-900 text-sm flex-1">{task.title}</h3>
+        <h3 className="font-medium text-white text-sm flex-1">{task.title}</h3>
         <div className="flex items-center gap-1">
           {getAgentIcon(task.agentType)}
           {getStatusIcon(task.status)}
@@ -47,7 +47,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit, onDelete, onExecuteWi
       </div>
 
       {task.description && (
-        <p className="text-gray-600 text-xs mb-3 line-clamp-2">{task.description}</p>
+        <p className="text-gray-400 text-xs mb-3 line-clamp-2">{task.description}</p>
       )}
 
       <div className="flex items-center gap-2 mb-3">
@@ -59,7 +59,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit, onDelete, onExecuteWi
       {task.labels.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-3">
           {task.labels.map((label, index) => (
-            <span key={index} className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs">
+            <span key={index} className="flex items-center gap-1 px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-xs">
               <Tag className="w-3 h-3" />
               {label}
             </span>
@@ -68,14 +68,14 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit, onDelete, onExecuteWi
       )}
 
       {task.assignee && (
-        <div className="flex items-center gap-1 mb-3 text-xs text-gray-500">
+        <div className="flex items-center gap-1 mb-3 text-xs text-gray-400">
           <User className="w-3 h-3" />
           {task.assignee}
         </div>
       )}
 
       <div className="flex items-center justify-between">
-        <span className="text-xs text-gray-400">
+        <span className="text-xs text-gray-500">
           {task.updatedAt instanceof Date ? task.updatedAt.toLocaleDateString() : new Date(task.updatedAt).toLocaleDateString()}
         </span>
         <div className="flex items-center gap-1">
@@ -85,10 +85,10 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit, onDelete, onExecuteWi
                 e.stopPropagation();
                 onExecuteWithAgent(task);
               }}
-              className="p-1 hover:bg-gray-100 rounded"
+              className="p-1 hover:bg-gray-700 rounded"
               title="Execute with AI Agent"
             >
-              <Play className="w-3 h-3 text-green-600" />
+              <Play className="w-3 h-3 text-green-500" />
             </button>
           )}
           <button
@@ -96,20 +96,20 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit, onDelete, onExecuteWi
               e.stopPropagation();
               onEdit(task);
             }}
-            className="p-1 hover:bg-gray-100 rounded"
+            className="p-1 hover:bg-gray-700 rounded"
             title="Edit task"
           >
-            <Settings className="w-3 h-3 text-gray-600" />
+            <Settings className="w-3 h-3 text-gray-300" />
           </button>
           <button
             onClick={(e) => {
               e.stopPropagation();
               onDelete(task.id);
             }}
-            className="p-1 hover:bg-gray-100 rounded"
+            className="p-1 hover:bg-gray-700 rounded"
             title="Delete task"
           >
-            <div className="w-3 h-3 text-red-600">×</div>
+            <div className="w-3 h-3 text-red-500">×</div>
           </button>
         </div>
       </div>
@@ -138,33 +138,33 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
 }) => {
   const getStatusColor = (status: TaskStatus) => {
     switch (status) {
-      case TaskStatus.TODO: return 'bg-gray-50 border-gray-200';
-      case TaskStatus.IN_PROGRESS: return 'bg-blue-50 border-blue-200';
-      case TaskStatus.REVIEW: return 'bg-purple-50 border-purple-200';
-      case TaskStatus.DONE: return 'bg-green-50 border-green-200';
-      default: return 'bg-gray-50 border-gray-200';
+      case TaskStatus.TODO: return 'bg-gray-800/50 border-gray-700';
+      case TaskStatus.IN_PROGRESS: return 'bg-blue-900/20 border-blue-700';
+      case TaskStatus.REVIEW: return 'bg-purple-900/20 border-purple-700';
+      case TaskStatus.DONE: return 'bg-green-900/20 border-green-700';
+      default: return 'bg-gray-800/50 border-gray-700';
     }
   };
 
   return (
-    <div className={`flex-1 min-w-80 border-2 rounded-lg p-4 ${getStatusColor(status)}`}>
+    <div className={`flex-1 min-w-[220px] max-w-[280px] md:max-w-[320px] border-2 rounded-lg p-3 sm:p-4 ${getStatusColor(status)} flex flex-col h-full`}>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="font-semibold text-gray-900">{title}</h2>
+        <h2 className="font-semibold text-white">{title}</h2>
         <div className="flex items-center gap-2">
-          <span className="bg-white px-2 py-1 rounded text-sm font-medium text-gray-600">
+          <span className="bg-gray-700 px-2 py-1 rounded text-sm font-medium text-gray-300">
             {tasks.length}
           </span>
           <button
             onClick={() => onAddTask(status)}
-            className="p-1 hover:bg-white rounded transition-colors"
+            className="p-1 hover:bg-gray-700 rounded transition-colors"
             title="Add new task"
           >
-            <Plus className="w-4 h-4 text-gray-600" />
+            <Plus className="w-4 h-4 text-gray-300" />
           </button>
         </div>
       </div>
 
-      <div className="space-y-3 min-h-[200px]">
+      <div className="flex flex-col items-center gap-3 flex-1 min-h-[200px] overflow-y-auto">
         {tasks.map((task) => (
           <TaskCard
             key={task.id}
@@ -176,7 +176,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
         ))}
         
         {tasks.length === 0 && (
-          <div className="text-center py-8 text-gray-400 text-sm">
+          <div className="text-center py-8 text-gray-500 text-sm">
             No tasks in this column
           </div>
         )}
@@ -231,8 +231,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   }
 
   return (
-    <div className="h-full bg-gray-100 p-6">
-      <div className="flex gap-6 h-full overflow-x-auto">
+    <div className="h-full bg-slate-800 p-2 sm:p-3 md:p-4 lg:p-6">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex gap-2 sm:gap-3 md:gap-4 lg:gap-6 h-full overflow-x-auto pb-2">
         <KanbanColumn
           title="To Do"
           status={TaskStatus.TODO}
@@ -272,6 +273,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
           onTaskExecute={onTaskExecute}
           onAddTask={onTaskAdd}
         />
+        </div>
       </div>
     </div>
   );

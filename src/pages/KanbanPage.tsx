@@ -4,6 +4,7 @@ import { TaskForm } from '../components/TaskForm';
 import { Task, TaskStatus } from '../types/kanban';
 import { KanbanService } from '../services/kanban';
 import { Settings, Bot, Plus } from 'lucide-react';
+import Navbar from '../components/Navbar';
 
 export const KanbanPage: React.FC = () => {
   const [selectedTask, setSelectedTask] = useState<Task | undefined>();
@@ -72,65 +73,70 @@ export const KanbanPage: React.FC = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col">
-      <header className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold text-gray-900">Vibe Kanban</h1>
-          <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm">
-            <Bot className="w-4 h-4" />
-            OpenCode Integration
-          </div>
-        </div>
-          
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => handleTaskAdd(TaskStatus.TODO)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              New Task
-            </button>
-            
-            <button 
-              onClick={() => alert('OpenCode Setup:\n\n1. Install: npm install -g opencode-ai\n2. Start: opencode serve --cors http://localhost:3000\n3. Configure API keys: opencode connect anthropic\n4. Refresh this page\n\nWithout OpenCode server, tasks run in mock mode.')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              title="OpenCode Setup Help"
-            >
-              <Settings className="w-5 h-5 text-gray-600" />
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main className="flex-1 overflow-hidden">
-        <KanbanBoard
-          onTaskEdit={handleTaskEdit}
-          onTaskAdd={handleTaskAdd}
-          onTaskExecute={handleTaskExecute}
-        />
-      </main>
-
-      {showTaskForm && (
-        <TaskForm
-          task={selectedTask}
-          initialStatus={initialStatus}
-          onSave={handleTaskSave}
-          onCancel={handleTaskCancel}
-        />
-      )}
-
-      {isExecuting && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 flex items-center gap-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <div>
-              <p className="font-medium">Executing task with AI agent...</p>
-              <p className="text-sm text-gray-600">This may take a moment.</p>
+    <div className="min-h-screen bg-slate-900 text-white">
+      <Navbar />
+      <div className="p-1 sm:p-2 md:p-4 lg:p-6">
+        <div className="max-w-full">
+          <header className="mb-8">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <h1 className="text-3xl font-bold text-white">Vibe Kanban</h1>
+                <div className="flex items-center gap-2 px-3 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm">
+                  <Bot className="w-4 h-4" />
+                  OpenCode Integration
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => handleTaskAdd(TaskStatus.TODO)}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  New Task
+                </button>
+                
+                <button 
+                  onClick={() => alert('OpenCode Setup:\n\n1. Install: npm install -g opencode-ai\n2. Start: opencode serve --cors http://localhost:3000\n3. Configure API keys: opencode connect anthropic\n4. Refresh this page\n\nWithout OpenCode server, tasks run in mock mode.')}
+                  className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+                  title="OpenCode Setup Help"
+                >
+                  <Settings className="w-5 h-5 text-gray-300" />
+                </button>
+              </div>
             </div>
-          </div>
+          </header>
+
+          <main className="bg-slate-800 rounded-lg p-6 border border-slate-700 shadow-xl overflow-hidden flex-1 min-h-[600px]">
+            <KanbanBoard
+              onTaskEdit={handleTaskEdit}
+              onTaskAdd={handleTaskAdd}
+              onTaskExecute={handleTaskExecute}
+            />
+          </main>
+
+          {showTaskForm && (
+            <TaskForm
+              task={selectedTask}
+              initialStatus={initialStatus}
+              onSave={handleTaskSave}
+              onCancel={handleTaskCancel}
+            />
+          )}
+
+          {isExecuting && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 flex items-center gap-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                <div>
+                  <p className="font-medium text-white">Executing task with AI agent...</p>
+                  <p className="text-sm text-gray-300">This may take a moment.</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 };

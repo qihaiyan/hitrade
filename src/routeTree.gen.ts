@@ -14,7 +14,7 @@ import { Route as KanbanRouteImport } from './routes/kanban'
 import { Route as ChartRouteImport } from './routes/chart'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DemoTableRouteImport } from './routes/demo/table'
-import { Route as DemoStartServerFuncsRouteImport } from './routes/demo/start.server-funcs'
+import { Route as DemoStartPositionRouteImport } from './routes/demo/start.position'
 import { Route as DemoFormSimpleRouteImport } from './routes/demo/form.simple'
 import { Route as DemoFormAddressRouteImport } from './routes/demo/form.address'
 
@@ -43,9 +43,9 @@ const DemoTableRoute = DemoTableRouteImport.update({
   path: '/demo/table',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DemoStartServerFuncsRoute = DemoStartServerFuncsRouteImport.update({
-  id: '/demo/start/server-funcs',
-  path: '/demo/start/server-funcs',
+const DemoStartPositionRoute = DemoStartPositionRouteImport.update({
+  id: '/demo/start/position',
+  path: '/demo/start/position',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DemoFormSimpleRoute = DemoFormSimpleRouteImport.update({
@@ -67,7 +67,7 @@ export interface FileRoutesByFullPath {
   '/demo/table': typeof DemoTableRoute
   '/demo/form/address': typeof DemoFormAddressRoute
   '/demo/form/simple': typeof DemoFormSimpleRoute
-  '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
+  '/demo/start/position': typeof DemoStartPositionRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -77,7 +77,7 @@ export interface FileRoutesByTo {
   '/demo/table': typeof DemoTableRoute
   '/demo/form/address': typeof DemoFormAddressRoute
   '/demo/form/simple': typeof DemoFormSimpleRoute
-  '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
+  '/demo/start/position': typeof DemoStartPositionRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -88,7 +88,7 @@ export interface FileRoutesById {
   '/demo/table': typeof DemoTableRoute
   '/demo/form/address': typeof DemoFormAddressRoute
   '/demo/form/simple': typeof DemoFormSimpleRoute
-  '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
+  '/demo/start/position': typeof DemoStartPositionRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -100,7 +100,7 @@ export interface FileRouteTypes {
     | '/demo/table'
     | '/demo/form/address'
     | '/demo/form/simple'
-    | '/demo/start/server-funcs'
+    | '/demo/start/position'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -110,7 +110,7 @@ export interface FileRouteTypes {
     | '/demo/table'
     | '/demo/form/address'
     | '/demo/form/simple'
-    | '/demo/start/server-funcs'
+    | '/demo/start/position'
   id:
     | '__root__'
     | '/'
@@ -120,7 +120,7 @@ export interface FileRouteTypes {
     | '/demo/table'
     | '/demo/form/address'
     | '/demo/form/simple'
-    | '/demo/start/server-funcs'
+    | '/demo/start/position'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -131,7 +131,7 @@ export interface RootRouteChildren {
   DemoTableRoute: typeof DemoTableRoute
   DemoFormAddressRoute: typeof DemoFormAddressRoute
   DemoFormSimpleRoute: typeof DemoFormSimpleRoute
-  DemoStartServerFuncsRoute: typeof DemoStartServerFuncsRoute
+  DemoStartPositionRoute: typeof DemoStartPositionRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -171,11 +171,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DemoTableRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/demo/start/server-funcs': {
-      id: '/demo/start/server-funcs'
-      path: '/demo/start/server-funcs'
-      fullPath: '/demo/start/server-funcs'
-      preLoaderRoute: typeof DemoStartServerFuncsRouteImport
+    '/demo/start/position': {
+      id: '/demo/start/position'
+      path: '/demo/start/position'
+      fullPath: '/demo/start/position'
+      preLoaderRoute: typeof DemoStartPositionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/demo/form/simple': {
@@ -203,7 +203,7 @@ const rootRouteChildren: RootRouteChildren = {
   DemoTableRoute: DemoTableRoute,
   DemoFormAddressRoute: DemoFormAddressRoute,
   DemoFormSimpleRoute: DemoFormSimpleRoute,
-  DemoStartServerFuncsRoute: DemoStartServerFuncsRoute,
+  DemoStartPositionRoute: DemoStartPositionRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

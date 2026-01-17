@@ -7,6 +7,7 @@ import { ensureDefaultUser } from '../../data/users'
 import { getAllStockPrice } from '../../data/stockPrice'
 import { PositionTable } from '../../components/PositionTable'
 import { AddPositionModal } from '../../components/AddPositionModal'
+import Navbar from '../../components/Navbar'
 
 // 服务器函数
 const getPositions = createServerFn({ method: 'GET' })
@@ -95,7 +96,7 @@ const createUser = createServerFn({ method: 'POST' })
   })
 */
 
-export const Route = createFileRoute('/demo/start/server-funcs')({
+export const Route = createFileRoute('/demo/start/position')({
   component: Home,
   loader: async () => await getPositions(),
 })
@@ -137,42 +138,42 @@ function Home() {
   }, [getAllStocks])
 
   return (
-    <div
-      className="flex items-center justify-center min-h-screen bg-gradient-to-br from-zinc-800 to-black p-4 text-white"
-      style={{
-        backgroundImage:
-          'radial-gradient(50% 50% at 20% 60%, #23272a 0%, #18181b 50%, #000000 100%)',
-      }}
-    >
-      <div className="w-full max-w-7xl p-8 rounded-xl backdrop-blur-md bg-black/50 shadow-xl border-8 border-black/10">
-        <h1 className="text-2xl mb-6">用户持仓管理</h1>
-        
-        {/* 持仓列表 */}
-        <div>
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl">持仓列表</h2>
-            <button
-              onClick={() => setShowModal(true)}
-              className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors"
-            >
-              添加持仓
-            </button>
+    <div className="min-h-screen bg-slate-900 text-white">
+      <Navbar />
+      <div className="p-4 sm:p-6 md:p-8">
+        <div className="max-w-7xl mx-auto">
+          <header className="mb-8">
+            <h1 className="text-3xl font-bold text-white mb-2">用户持仓管理</h1>
+            <p className="text-gray-400">查看和管理您的股票持仓</p>
+          </header>
+
+          {/* 持仓列表 */}
+          <div className="bg-slate-800 rounded-lg p-6 border border-slate-700 shadow-xl">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">持仓列表</h2>
+              <button
+                onClick={() => setShowModal(true)}
+                className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+              >
+                添加持仓
+              </button>
+            </div>
+            <PositionTable 
+              positions={positions} 
+              onDelete={handleDelete}
+              onUpdate={handleUpdate}
+              onGetTransactions={handleGetTransactions}
+            />
           </div>
-          <PositionTable 
-            positions={positions} 
-            onDelete={handleDelete}
-            onUpdate={handleUpdate}
-            onGetTransactions={handleGetTransactions}
+          
+          {/* 新增持仓模态框 */}
+          <AddPositionModal 
+            isOpen={showModal} 
+            onClose={() => setShowModal(false)} 
+            onAdd={handleAddPosition}
+            onGetAllStocks={handleGetAllStocks}
           />
         </div>
-        
-        {/* 新增持仓模态框 */}
-        <AddPositionModal 
-          isOpen={showModal} 
-          onClose={() => setShowModal(false)} 
-          onAdd={handleAddPosition}
-          onGetAllStocks={handleGetAllStocks}
-        />
       </div>
     </div>
   )

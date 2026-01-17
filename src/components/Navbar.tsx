@@ -34,6 +34,12 @@ const Navbar: React.FC = () => {
               >
                 看板
               </a>
+              <a
+                href="/demo/start/position"
+                className="border-transparent text-gray-300 hover:border-gray-300 hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+              >
+                持仓管理
+              </a>
             </div>
           </div>
         </div>
