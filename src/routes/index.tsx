@@ -7,6 +7,7 @@ import {
   Waves,
   Sparkles,
 } from 'lucide-react'
+import Navbar from '../components/Navbar'
 
 export const Route = createFileRoute('/')({ component: App })
 
@@ -52,6 +53,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900">
+      <Navbar />
       <section className="relative py-20 px-6 text-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10"></div>
         <div className="relative max-w-5xl mx-auto">
@@ -88,6 +90,12 @@ function App() {
               className="px-8 py-3 bg-transparent hover:bg-slate-700 text-white border border-slate-600 hover:border-cyan-500 font-semibold rounded-lg transition-colors"
             >
               Chart Demo
+            </a>
+            <a
+              href="/watchlist"
+              className="px-8 py-3 bg-transparent hover:bg-slate-700 text-white border border-slate-600 hover:border-cyan-500 font-semibold rounded-lg transition-colors"
+            >
+              自选股
             </a>
             <p className="text-gray-400 text-sm mt-2">
               Begin your TanStack Start journey by editing{' '}

@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import * as LightweightCharts from 'lightweight-charts'
+import Navbar from '../components/Navbar'
 
 // Define chart data types
 type ChartTime = string | number | LightweightCharts.BusinessDay
@@ -850,110 +851,115 @@ function ChartPage() {
   }, [updateIndicators])
   
   return (
-    <div className="min-h-screen bg-slate-900 text-white p-4 sm:p-6 md:p-8">
-      <div className="max-w-7xl mx-auto">
-        <header className="mb-6">
-          <h1 className="text-3xl font-bold text-white mb-2">Financial Chart</h1>
-          <p className="text-gray-400">Interactive chart with technical indicators</p>
-        </header>
-        
-        <div className="mb-4 flex flex-wrap gap-4 items-center">
-          <div>
-            <label className="mr-2 text-sm text-gray-400">Timeframe:</label>
-            <select
-              value={timeframe}
-              onChange={(e) => handleTimeframeChange(e.target.value)}
-              className="bg-slate-800 border border-slate-700 rounded px-3 py-1 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="1m">1 Minute</option>
-              <option value="5m">5 Minutes</option>
-              <option value="15m">15 Minutes</option>
-              <option value="1h">1 Hour</option>
-              <option value="4h">4 Hours</option>
-              <option value="1d">1 Day</option>
-            </select>
-          </div>
+    <div className="min-h-screen bg-slate-900 text-white">
+      <Navbar />
+      <div className="p-4 sm:p-6 md:p-8">
+        <div className="max-w-7xl mx-auto">
+          <header className="mb-6">
+            <h1 className="text-3xl font-bold text-white mb-2">Financial Chart</h1>
+            <p className="text-gray-400">Interactive chart with technical indicators</p>
+          </header>
           
-          <div className="flex flex-wrap gap-4">
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="show-sma"
-                checked={showSMA}
-                onChange={(e) => setShowSMA(e.target.checked)}
-                className="mr-2 accent-blue-500"
-              />
-              <label htmlFor="show-sma" className="text-sm">SMA ({smaPeriod})</label>
+          <div className="mb-4 flex flex-wrap gap-4 items-center">
+            <div>
+              <label className="mr-2 text-sm text-gray-400">Timeframe:</label>
+              <select
+                value={timeframe}
+                onChange={(e) => handleTimeframeChange(e.target.value)}
+                className="bg-slate-800 border border-slate-700 rounded px-3 py-1 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="1m">1 Minute</option>
+                <option value="5m">5 Minutes</option>
+                <option value="15m">15 Minutes</option>
+                <option value="1h">1 Hour</option>
+                <option value="4h">4 Hours</option>
+                <option value="1d">1 Day</option>
+              </select>
             </div>
             
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="show-ema"
-                checked={showEMA}
-                onChange={(e) => setShowEMA(e.target.checked)}
-                className="mr-2 accent-blue-500"
-              />
-              <label htmlFor="show-ema" className="text-sm">EMA ({emaPeriod})</label>
-            </div>
-            
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="show-macd"
-                checked={showMACD}
-                onChange={(e) => setShowMACD(e.target.checked)}
-                className="mr-2 accent-blue-500"
-              />
-              <label htmlFor="show-macd" className="text-sm">MACD</label>
-            </div>
-            
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="show-rsi"
-                checked={showRSI}
-                onChange={(e) => setShowRSI(e.target.checked)}
-                className="mr-2 accent-blue-500"
-              />
-              <label htmlFor="show-rsi" className="text-sm">RSI ({rsiPeriod})</label>
-            </div>
-            
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="show-bb"
-                checked={showBB}
-                onChange={(e) => setShowBB(e.target.checked)}
-                className="mr-2 accent-blue-500"
-              />
-              <label htmlFor="show-bb" className="text-sm">Bollinger Bands</label>
+            <div className="flex flex-wrap gap-4">
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="show-sma"
+                  checked={showSMA}
+                  onChange={(e) => setShowSMA(e.target.checked)}
+                  className="mr-2 accent-blue-500"
+                />
+                <label htmlFor="show-sma" className="text-sm">SMA ({smaPeriod})</label>
+              </div>
+              
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="show-ema"
+                  checked={showEMA}
+                  onChange={(e) => setShowEMA(e.target.checked)}
+                  className="mr-2 accent-blue-500"
+                />
+                <label htmlFor="show-ema" className="text-sm">EMA ({emaPeriod})</label>
+              </div>
+              
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="show-macd"
+                  checked={showMACD}
+                  onChange={(e) => setShowMACD(e.target.checked)}
+                  className="mr-2 accent-blue-500"
+                />
+                <label htmlFor="show-macd" className="text-sm">MACD</label>
+              </div>
+              
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="show-rsi"
+                  checked={showRSI}
+                  onChange={(e) => setShowRSI(e.target.checked)}
+                  className="mr-2 accent-blue-500"
+                />
+                <label htmlFor="show-rsi" className="text-sm">RSI ({rsiPeriod})</label>
+              </div>
+              
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="show-bb"
+                  checked={showBB}
+                  onChange={(e) => setShowBB(e.target.checked)}
+                  className="mr-2 accent-blue-500"
+                />
+                <label htmlFor="show-bb" className="text-sm">Bollinger Bands</label>
+              </div>
             </div>
           </div>
         </div>
         
-        <div id="chart-wrapper" className="bg-slate-800 rounded-lg overflow-hidden border border-slate-700 shadow-xl">
-          <div
-            ref={chartContainerRef}
-            className="h-[400px] sm:h-[500px]"
-          ></div>
-          <div
-            ref={volumeContainerRef}
-            className="h-[120px] sm:h-[150px] border-t border-slate-700"
-          ></div>
-          <div
-            ref={macdContainerRef}
-            className="h-[120px] sm:h-[150px] border-t border-slate-700"
-          ></div>
-          <div
-            ref={rsiContainerRef}
-            className="h-[120px] sm:h-[150px] border-t border-slate-700"
-          ></div>
-          
-          <div
-            ref={tooltipRef}
-            className="absolute z-50 pointer-events-none bg-slate-800/95 backdrop-blur-sm border border-slate-700 rounded-lg p-3 shadow-lg hidden"
-          ></div>
+        <div className="max-w-7xl mx-auto">
+          <div id="chart-wrapper" className="bg-slate-800 rounded-lg overflow-hidden border border-slate-700 shadow-xl">
+            <div
+              ref={chartContainerRef}
+              className="h-[400px] sm:h-[500px]"
+            ></div>
+            <div
+              ref={volumeContainerRef}
+              className="h-[120px] sm:h-[150px] border-t border-slate-700"
+            ></div>
+            <div
+              ref={macdContainerRef}
+              className="h-[120px] sm:h-[150px] border-t border-slate-700"
+            ></div>
+            <div
+              ref={rsiContainerRef}
+              className="h-[120px] sm:h-[150px] border-t border-slate-700"
+            ></div>
+            
+            <div
+              ref={tooltipRef}
+              className="absolute z-50 pointer-events-none bg-slate-800/95 backdrop-blur-sm border border-slate-700 rounded-lg p-3 shadow-lg hidden"
+            ></div>
+          </div>
         </div>
       </div>
     </div>
