@@ -243,15 +243,7 @@
       window.ChartApp.drawing.setDrawMode(!currentMode);
     });
     rsiPeriodInput?.addEventListener('change', () => updateIndicators());
-    exportBtn.addEventListener('click', () => {
-      const wrapper = document.getElementById('chart-wrapper');
-      html2canvas(wrapper, { backgroundColor: '#071122', scale: devicePixelRatio }).then(canvas => {
-        const a = document.createElement('a');
-        a.href = canvas.toDataURL('image/png');
-        a.download = `${symbolInput.value || 'chart'}_${Date.now()}.png`;
-        a.click();
-      });
-    });
+    // 移除导出功能（依赖html2canvas）
     window.addEventListener('resize', debouncedResize);
   }
 

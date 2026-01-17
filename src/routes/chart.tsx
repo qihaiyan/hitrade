@@ -1,7 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import * as LightweightCharts from 'lightweight-charts'
-import html2canvas from 'html2canvas'
 
 // Define chart data types
 type ChartTime = string | number | LightweightCharts.BusinessDay
@@ -823,22 +822,6 @@ function ChartPage() {
     loadData(tf)
   }, [loadData])
   
-  // Export chart as PNG
-  const exportChart = useCallback(() => {
-    const wrapper = document.getElementById('chart-wrapper')
-    if (!wrapper) return
-    
-    html2canvas(wrapper, {
-      backgroundColor: '#071122',
-      scale: 2
-    }).then(canvas => {
-      const link = document.createElement('a')
-      link.download = 'chart.png'
-      link.href = canvas.toDataURL()
-      link.click()
-    })
-  }, [])
-  
   // Initialize charts on mount
   useEffect(() => {
     initializeCharts()
@@ -946,15 +929,6 @@ function ChartPage() {
               />
               <label htmlFor="show-bb" className="text-sm">Bollinger Bands</label>
             </div>
-          </div>
-          
-          <div>
-            <button
-              onClick={exportChart}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition-colors"
-            >
-              Export PNG
-            </button>
           </div>
         </div>
         
