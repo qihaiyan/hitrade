@@ -1,5 +1,5 @@
 // 数据库文件路径
-const DB_FILE = 'todos.db'
+const DB_FILE = 'stock.db'
 
 // 封装数据库操作的函数，仅在服务器端执行
 export async function withDatabase<T>(fn: (db: any) => T): Promise<T> {
