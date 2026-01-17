@@ -8,6 +8,12 @@ interface ChartProps {
 }
 
 function Chart({ initialTimeframe = '1m' }: ChartProps) {
+  // Type aliases for convenience
+  type ChartApiRef = LightweightCharts.IChartApi | null
+  type CandlestickSeriesRef = LightweightCharts.ISeriesApi<'Candlestick'> | null
+  type LineSeriesRef = LightweightCharts.ISeriesApi<'Line'> | null
+  type HistogramSeriesRef = LightweightCharts.ISeriesApi<'Histogram'> | null
+  
   // Chart containers
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const volumeContainerRef = useRef<HTMLDivElement>(null)
@@ -15,23 +21,55 @@ function Chart({ initialTimeframe = '1m' }: ChartProps) {
   const rsiContainerRef = useRef<HTMLDivElement>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
   
-  // Chart instances
-  const chartRef = useRef<LightweightCharts.IChartApi | null>(null)
-  const candleSeriesRef = useRef<LightweightCharts.ISeriesApi<'Candlestick'> | null>(null)
-  const volumeChartRef = useRef<LightweightCharts.IChartApi | null>(null)
-  const volumeSeriesRef = useRef<LightweightCharts.ISeriesApi<'Histogram'> | null>(null)
-  const smaSeriesRef = useRef<LightweightCharts.ISeriesApi<'Line'> | null>(null)
-  const emaSeriesRef = useRef<LightweightCharts.ISeriesApi<'Line'> | null>(null)
-  const bbUpperSeriesRef = useRef<LightweightCharts.ISeriesApi<'Line'> | null>(null)
-  const bbMiddleSeriesRef = useRef<LightweightCharts.ISeriesApi<'Line'> | null>(null)
-  const bbLowerSeriesRef = useRef<LightweightCharts.ISeriesApi<'Line'> | null>(null)
-  const macdChartRef = useRef<LightweightCharts.IChartApi | null>(null)
-  const macdSeriesRef = useRef<LightweightCharts.ISeriesApi<'Line'> | null>(null)
-  const macdSignalSeriesRef = useRef<LightweightCharts.ISeriesApi<'Line'> | null>(null)
-  const macdHistogramSeriesRef = useRef<LightweightCharts.ISeriesApi<'Histogram'> | null>(null)
-  const rsiChartRef = useRef<LightweightCharts.IChartApi | null>(null)
-  const rsiSeriesRef = useRef<LightweightCharts.ISeriesApi<'Line'> | null>(null)
-  const eventListenersRef = useRef<{ chartContainer?: HTMLElement | null; volumeContainer?: HTMLElement | null; macdContainer?: HTMLElement | null; rsiContainer?: HTMLElement | null; handleZoom?: (e: WheelEvent) => void }>({})
+  // Chart instances organized by type
+  const chartsRef = useRef<{
+    main: ChartApiRef
+    volume: ChartApiRef
+    macd: ChartApiRef
+    rsi: ChartApiRef
+  }>({ main: null, volume: null, macd: null, rsi: null })
+  
+  // Series instances organized by chart and type
+  const seriesRef = useRef<{
+    // Main chart series
+    candle: CandlestickSeriesRef
+    sma: LineSeriesRef
+    ema: LineSeriesRef
+    bbUpper: LineSeriesRef
+    bbMiddle: LineSeriesRef
+    bbLower: LineSeriesRef
+    
+    // Volume chart series
+    volume: HistogramSeriesRef
+    
+    // MACD chart series
+    macd: LineSeriesRef
+    macdSignal: LineSeriesRef
+    macdHistogram: HistogramSeriesRef
+    
+    // RSI chart series
+    rsi: LineSeriesRef
+  }>({
+    candle: null,
+    sma: null,
+    ema: null,
+    bbUpper: null,
+    bbMiddle: null,
+    bbLower: null,
+    volume: null,
+    macd: null,
+    macdSignal: null,
+    macdHistogram: null,
+    rsi: null
+  })
+  
+  const eventListenersRef = useRef<{
+    chartContainer?: HTMLElement | null
+    volumeContainer?: HTMLElement | null
+    macdContainer?: HTMLElement | null
+    rsiContainer?: HTMLElement | null
+    handleZoom?: (e: WheelEvent) => void
+  }>({})
   
   // State
   const [timeframe, setTimeframe] = useState<string>(initialTimeframe)
@@ -357,22 +395,27 @@ function Chart({ initialTimeframe = '1m' }: ChartProps) {
       }
     })
     
-    // Save instances
-    chartRef.current = chart
-    candleSeriesRef.current = candleSeries
-    volumeChartRef.current = volumeChart
-    volumeSeriesRef.current = volumeSeries
-    smaSeriesRef.current = smaSeries
-    emaSeriesRef.current = emaSeries
-    bbUpperSeriesRef.current = bbUpperSeries
-    bbMiddleSeriesRef.current = bbMiddleSeries
-    bbLowerSeriesRef.current = bbLowerSeries
-    macdChartRef.current = macdChart
-    macdSeriesRef.current = macdSeries
-    macdSignalSeriesRef.current = macdSignalSeries
-    macdHistogramSeriesRef.current = macdHistogramSeries
-    rsiChartRef.current = rsiChart
-    rsiSeriesRef.current = rsiSeries
+    // Save instances to organized refs
+    chartsRef.current = {
+      main: chart,
+      volume: volumeChart,
+      macd: macdChart,
+      rsi: rsiChart
+    }
+    
+    seriesRef.current = {
+      candle: candleSeries,
+      sma: smaSeries,
+      ema: emaSeries,
+      bbUpper: bbUpperSeries,
+      bbMiddle: bbMiddleSeries,
+      bbLower: bbLowerSeries,
+      volume: volumeSeries,
+      macd: macdSeries,
+      macdSignal: macdSignalSeries,
+      macdHistogram: macdHistogramSeries,
+      rsi: rsiSeries
+    }
     
     // Load initial data
     loadData(timeframe)
@@ -383,8 +426,8 @@ function Chart({ initialTimeframe = '1m' }: ChartProps) {
     const { candleData, volumeData } = chartDataService.loadDataForTimeframe(tf)
     
     // Update main chart
-    candleSeriesRef.current?.setData(candleData)
-    volumeSeriesRef.current?.setData(volumeData)
+    seriesRef.current.candle?.setData(candleData)
+    seriesRef.current.volume?.setData(volumeData)
     
     // Update indicators
     updateIndicators()
@@ -393,62 +436,63 @@ function Chart({ initialTimeframe = '1m' }: ChartProps) {
   // Update indicators
   const updateIndicators = useCallback(() => {
     const data = chartDataService.getCandleData()
+    const { sma, ema, bbUpper, bbMiddle, bbLower, macd, macdSignal, macdHistogram, rsi } = seriesRef.current
     
     // Update SMA
-    if (showSMA && smaSeriesRef.current) {
-      const sma = chartIndicators.calcSMA(data, smaPeriod)
-      smaSeriesRef.current.setData(sma)
-      smaSeriesRef.current.applyOptions({ visible: true })
-    } else if (smaSeriesRef.current) {
-      smaSeriesRef.current.applyOptions({ visible: false })
+    if (showSMA && sma) {
+      const smaData = chartIndicators.calcSMA(data, smaPeriod)
+      sma.setData(smaData)
+      sma.applyOptions({ visible: true })
+    } else if (sma) {
+      sma.applyOptions({ visible: false })
     }
     
     // Update EMA
-    if (showEMA && emaSeriesRef.current) {
-      const ema = chartIndicators.calcEMA(data, emaPeriod)
-      emaSeriesRef.current.setData(ema)
-      emaSeriesRef.current.applyOptions({ visible: true })
-    } else if (emaSeriesRef.current) {
-      emaSeriesRef.current.applyOptions({ visible: false })
+    if (showEMA && ema) {
+      const emaData = chartIndicators.calcEMA(data, emaPeriod)
+      ema.setData(emaData)
+      ema.applyOptions({ visible: true })
+    } else if (ema) {
+      ema.applyOptions({ visible: false })
     }
     
     // Update Bollinger Bands
-    if (showBB && bbUpperSeriesRef.current && bbMiddleSeriesRef.current && bbLowerSeriesRef.current) {
+    if (showBB && bbUpper && bbMiddle && bbLower) {
       const { upper, middle, lower } = chartIndicators.calcBB(data, smaPeriod)
-      bbUpperSeriesRef.current.setData(upper)
-      bbMiddleSeriesRef.current.setData(middle)
-      bbLowerSeriesRef.current.setData(lower)
-      bbUpperSeriesRef.current.applyOptions({ visible: true })
-      bbMiddleSeriesRef.current.applyOptions({ visible: true })
-      bbLowerSeriesRef.current.applyOptions({ visible: true })
+      bbUpper.setData(upper)
+      bbMiddle.setData(middle)
+      bbLower.setData(lower)
+      bbUpper.applyOptions({ visible: true })
+      bbMiddle.applyOptions({ visible: true })
+      bbLower.applyOptions({ visible: true })
     } else {
-      bbUpperSeriesRef.current?.applyOptions({ visible: false })
-      bbMiddleSeriesRef.current?.applyOptions({ visible: false })
-      bbLowerSeriesRef.current?.applyOptions({ visible: false })
+      bbUpper?.applyOptions({ visible: false })
+      bbMiddle?.applyOptions({ visible: false })
+      bbLower?.applyOptions({ visible: false })
     }
     
     // Update MACD
-    if (showMACD && macdSeriesRef.current && macdSignalSeriesRef.current && macdHistogramSeriesRef.current) {
-      const { macd, signal, histogram } = chartIndicators.calcMACD(data)
-      macdSeriesRef.current.setData(macd)
-      macdSignalSeriesRef.current.setData(signal)
-      macdHistogramSeriesRef.current.setData(histogram)
-      macdSeriesRef.current.applyOptions({ visible: true })
-      macdSignalSeriesRef.current.applyOptions({ visible: true })
-      macdHistogramSeriesRef.current.applyOptions({ visible: true })
+    if (showMACD && macd && macdSignal && macdHistogram) {
+      const { macd: macdData, signal, histogram } = chartIndicators.calcMACD(data)
+      macd.setData(macdData)
+      macdSignal.setData(signal)
+      macdHistogram.setData(histogram)
+      macd.applyOptions({ visible: true })
+      macdSignal.applyOptions({ visible: true })
+      macdHistogram.applyOptions({ visible: true })
     } else {
-      macdSeriesRef.current?.applyOptions({ visible: false })
-      macdSignalSeriesRef.current?.applyOptions({ visible: false })
-      macdHistogramSeriesRef.current?.applyOptions({ visible: false })
+      macd?.applyOptions({ visible: false })
+      macdSignal?.applyOptions({ visible: false })
+      macdHistogram?.applyOptions({ visible: false })
     }
     
     // Update RSI
-    if (showRSI && rsiSeriesRef.current) {
-      const rsi = chartIndicators.calcRSI(data, rsiPeriod)
-      rsiSeriesRef.current.setData(rsi)
-      rsiSeriesRef.current.applyOptions({ visible: true })
-    } else if (rsiSeriesRef.current) {
-      rsiSeriesRef.current.applyOptions({ visible: false })
+    if (showRSI && rsi) {
+      const rsiData = chartIndicators.calcRSI(data, rsiPeriod)
+      rsi.setData(rsiData)
+      rsi.applyOptions({ visible: true })
+    } else if (rsi) {
+      rsi.applyOptions({ visible: false })
     }
     
     // Force complete rendering of all charts, regardless of mouse position
@@ -459,25 +503,26 @@ function Chart({ initialTimeframe = '1m' }: ChartProps) {
       const width = chartContainerRef.current?.clientWidth || 800
       const height = 400
       const indicatorHeight = 120
+      const { main, volume, macd, rsi } = chartsRef.current
       
       // Resize all charts
-      chartRef.current?.resize(width, height)
-      volumeChartRef.current?.resize(width, indicatorHeight)
-      macdChartRef.current?.resize(width, indicatorHeight)
-      rsiChartRef.current?.resize(width, indicatorHeight)
+      main?.resize(width, height)
+      volume?.resize(width, indicatorHeight)
+      macd?.resize(width, indicatorHeight)
+      rsi?.resize(width, indicatorHeight)
       
       // Force time scale update to ensure proper data range display
-      const mainRange = chartRef.current?.timeScale().getVisibleLogicalRange()
+      const mainRange = main?.timeScale().getVisibleLogicalRange()
       if (mainRange) {
-        volumeChartRef.current?.timeScale().setVisibleLogicalRange(mainRange)
-        macdChartRef.current?.timeScale().setVisibleLogicalRange(mainRange)
-        rsiChartRef.current?.timeScale().setVisibleLogicalRange(mainRange)
+        volume?.timeScale().setVisibleLogicalRange(mainRange)
+        macd?.timeScale().setVisibleLogicalRange(mainRange)
+        rsi?.timeScale().setVisibleLogicalRange(mainRange)
       }
       
       // Force redraw by toggling autoSize temporarily (if supported)
-      if (chartRef.current?.applyOptions) {
-        chartRef.current.applyOptions({ autoSize: false })
-        chartRef.current.applyOptions({ autoSize: false })
+      if (main?.applyOptions) {
+        main.applyOptions({ autoSize: false })
+        main.applyOptions({ autoSize: false })
       }
     }
     
@@ -508,10 +553,15 @@ function Chart({ initialTimeframe = '1m' }: ChartProps) {
   // Handle window resize
   useEffect(() => {
     const handleResize = () => {
-      chartRef.current?.resize(chartContainerRef.current?.clientWidth || 800, 400)
-      volumeChartRef.current?.resize(volumeContainerRef.current?.clientWidth || 800, 120)
-      macdChartRef.current?.resize(macdContainerRef.current?.clientWidth || 800, 120)
-      rsiChartRef.current?.resize(rsiContainerRef.current?.clientWidth || 800, 120)
+      const width = chartContainerRef.current?.clientWidth || 800
+      const height = 400
+      const indicatorHeight = 120
+      const { main, volume, macd, rsi } = chartsRef.current
+      
+      main?.resize(width, height)
+      volume?.resize(width, indicatorHeight)
+      macd?.resize(width, indicatorHeight)
+      rsi?.resize(width, indicatorHeight)
     }
     
     window.addEventListener('resize', handleResize)
@@ -538,11 +588,12 @@ function Chart({ initialTimeframe = '1m' }: ChartProps) {
         eventListeners.rsiContainer?.removeEventListener('wheel', eventListeners.handleZoom)
       }
       
-      // Clean up charts
-      chartRef.current?.remove()
-      volumeChartRef.current?.remove()
-      macdChartRef.current?.remove()
-      rsiChartRef.current?.remove()
+      // Clean up charts using organized refs
+      const { main, volume, macd, rsi } = chartsRef.current
+      main?.remove()
+      volume?.remove()
+      macd?.remove()
+      rsi?.remove()
     }
   }, [initializeCharts])
   
